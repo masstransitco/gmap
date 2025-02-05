@@ -23,12 +23,22 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
     const overlay = new google.maps.WebGLOverlayView();
 
     overlay.onAdd = () => {
-      // This is called when the overlay is first attached to the map
+      // Called when the overlay is added to the map
     };
 
     overlay.onContextRestored = ({ gl }) => {
-      if (!rendererRef.current) return;
-      rendererRef.current.setContext(gl);
+      // Use the provided WebGL context
+      if (rendererRef.current) {
+        const context = gl as WebGLRenderingContext;
+        rendererRef.current.getContext().canvas.addEventListener('webglcontextlost', (e) => {
+          e.preventDefault();
+        });
+        rendererRef.current.getContext().canvas.addEventListener('webglcontextrestored', () => {
+          if (rendererRef.current) {
+            rendererRef.current.setAnimationLoop(null);
+          }
+        });
+      }
     };
 
     overlay.onDraw = ({ transformer }) => {

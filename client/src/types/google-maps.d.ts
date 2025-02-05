@@ -1,6 +1,8 @@
+/// <reference types="@types/google.maps" />
+
 declare global {
   interface Window {
-    initMap: () => Promise<void>;
+    initMap: () => void;
     google: typeof google;
   }
 }
