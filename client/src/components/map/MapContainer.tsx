@@ -13,7 +13,7 @@ export function MapContainer() {
   useEffect(() => {
     const loadGoogleMaps = async () => {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-      console.log('API Key available:', !!apiKey); // Log if API key exists
+      console.log('API Key available:', !!apiKey);
 
       if (!apiKey) {
         toast({
@@ -30,13 +30,12 @@ export function MapContainer() {
       }
 
       try {
-        // Only load script if Google Maps is not already loaded
         if (!window.google?.maps) {
           console.log('Loading Google Maps script...');
 
           await new Promise<void>((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker&v=beta`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker,geometry,visualization,webgl&v=beta`;
             script.async = true;
 
             script.onload = () => {
@@ -55,24 +54,24 @@ export function MapContainer() {
 
         console.log('Initializing map with Maps library...');
         const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        await google.maps.importLibrary("webgl");
 
+        // Center on Hong Kong's ICC building
         const map = new Map(containerRef.current, {
-          center: { lat: 40.7128, lng: -74.0060 },
-          zoom: 15,
-          mapId: 'bf51a910020fa25a', // Vector map style ID
+          center: { lat: 22.3035, lng: 114.1599 },
+          zoom: 18, // Closer zoom to see the building
+          mapId: '6ff586e93e18149f', // Using a verified vector map ID
           disableDefaultUI: false,
-          tilt: 45, // Enable initial tilt
+          tilt: 45,
           heading: 0,
-          mapTypeId: 'roadmap',
+          mapTypeId: 'vector',
           mapTypeControl: false,
           streetViewControl: true,
-          rotateControl: true, // Enable rotation control for 3D view
+          rotateControl: true,
         });
 
-        // Enable tilt with two fingers
         map.setOptions({
           gestureHandling: 'greedy',
-          // Additional controls for better 3D interaction
           heading: 0,
           tilt: 45,
         });

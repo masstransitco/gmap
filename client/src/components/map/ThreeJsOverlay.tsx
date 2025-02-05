@@ -15,6 +15,7 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
   useEffect(() => {
     if (!overlayRef.current) return;
 
+    console.log('Initializing Three.js scene...');
     const { scene, renderer, camera } = initScene(overlayRef.current);
     sceneRef.current = scene;
     rendererRef.current = renderer;
@@ -23,42 +24,66 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
     const overlay = new google.maps.WebGLOverlayView();
 
     overlay.onAdd = () => {
-      // Called when the overlay is added to the map
+      console.log('WebGLOverlay added to map');
     };
 
     overlay.onContextRestored = ({ gl }) => {
-      if (!rendererRef.current) return;
+      console.log('WebGL context restored');
+      if (!rendererRef.current) {
+        console.error('Renderer not initialized');
+        return;
+      }
 
-      rendererRef.current.autoClear = false;
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      try {
+        rendererRef.current.autoClear = false;
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      } catch (error) {
+        console.error('Error in onContextRestored:', error);
+      }
     };
 
     overlay.onDraw = ({ transformer }) => {
-      if (!sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+      if (!sceneRef.current || !rendererRef.current || !cameraRef.current) {
+        console.warn('Missing Three.js references in onDraw');
+        return;
+      }
 
-      const matrix = transformer.fromLatLngAltitude({
-        lat: map.getCenter()?.lat() || 0,
-        lng: map.getCenter()?.lng() || 0,
-        altitude: 120
-      });
+      try {
+        // ICC building coordinates
+        const matrix = transformer.fromLatLngAltitude({
+          lat: 22.3035,
+          lng: 114.1599,
+          altitude: 400 // Height in meters for better visibility
+        });
 
-      updateSceneObjects(sceneRef.current, matrix);
+        updateSceneObjects(sceneRef.current, matrix);
 
-      const projection = new THREE.Matrix4().fromArray(matrix);
-      cameraRef.current.projectionMatrix = projection;
+        const projection = new THREE.Matrix4().fromArray(matrix);
+        cameraRef.current.projectionMatrix = projection;
 
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-      rendererRef.current.resetState();
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        rendererRef.current.resetState();
+      } catch (error) {
+        console.error('Error in onDraw:', error);
+      }
     };
 
+    console.log('Setting up WebGLOverlay on map...');
     overlay.setMap(map);
 
     return () => {
+      console.log('Cleaning up WebGLOverlay...');
       overlay.setMap(null);
       rendererRef.current?.dispose();
     };
   }, [map]);
 
-  return <div ref={overlayRef} className="absolute inset-0 pointer-events-none" />;
+  return (
+    <div 
+      ref={overlayRef} 
+      className="absolute inset-0 pointer-events-none" 
+      style={{ width: '100%', height: '100%' }}
+    />
+  );
 }
