@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      window.initMap = function() {
+        // This function will be called when Google Maps API is loaded
+        console.log('Google Maps API loaded');
+      };
+    </script>
+    <script id="google-maps-script"></script>
+    <script>
+      const googleMapsScript = document.getElementById('google-maps-script');
+      googleMapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&callback=initMap&libraries=maps,marker&v=beta`;
+    </script>
   </head>
   <body>
     <div id="root"></div>

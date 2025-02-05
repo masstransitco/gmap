@@ -11,16 +11,34 @@ export function MapContainer() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Check if the API key is available
+    if (!import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
+      toast({
+        title: "Error",
+        description: "Google Maps API key is not configured",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Load Google Maps script dynamically
+    const script = document.getElementById('google-maps-script') as HTMLScriptElement || document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&callback=initMap&libraries=maps,marker&v=beta`;
+    script.async = true;
+    document.body.appendChild(script);
+
+
     const initMap = async () => {
       try {
         const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-        
+
         if (!containerRef.current) return;
 
         const map = new Map(containerRef.current, {
           center: { lat: 40.7128, lng: -74.0060 },
           zoom: 15,
-          mapId: 'vector_map', // Create this in Google Cloud Console
+          mapId: 'vector_map',
           disableDefaultUI: false,
           mapTypeId: 'roadmap'
         });
@@ -37,7 +55,9 @@ export function MapContainer() {
       }
     };
 
-    initMap();
+    // Define the callback function that Google Maps will call
+    window.initMap = initMap;
+
   }, [toast]);
 
   if (!mapLoaded) {
