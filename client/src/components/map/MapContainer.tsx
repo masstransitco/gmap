@@ -43,17 +43,13 @@ export function MapContainer() {
           zoom: 19, // Increased zoom for better detail
           tilt: 67.5, // Optimal tilt for 3D view
           heading: 45, // Angled view
-          mapTypeId: 'satellite', // Use satellite view for better 3D
+          mapId: "8e0a97af9386fef", // Vector map ID for WebGL overlay
           disableDefaultUI: false,
           streetViewControl: true,
-          mapTypeControl: true,
+          mapTypeControl: false, // Disable map type control to force vector tiles
           fullscreenControl: true,
           rotateControl: true,
         });
-
-        // Enable 3D buildings layer
-        const webglOverlayView = new google.maps.WebGLOverlayView();
-        webglOverlayView.setMap(map);
 
         mapRef.current = map;
         setMapLoaded(true);
