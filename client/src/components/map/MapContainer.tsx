@@ -12,7 +12,8 @@ export function MapContainer() {
 
   useEffect(() => {
     // Check if the API key is available
-    if (!import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
       toast({
         title: "Error",
         description: "Google Maps API key is not configured",
@@ -20,14 +21,6 @@ export function MapContainer() {
       });
       return;
     }
-
-    // Load Google Maps script dynamically
-    const script = document.getElementById('google-maps-script') as HTMLScriptElement || document.createElement('script');
-    script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&callback=initMap&libraries=maps,marker&v=beta`;
-    script.async = true;
-    document.body.appendChild(script);
-
 
     const initMap = async () => {
       try {
@@ -47,6 +40,7 @@ export function MapContainer() {
         setMapLoaded(true);
 
       } catch (error) {
+        console.error('Map initialization error:', error);
         toast({
           title: "Error loading map",
           description: "Please check your internet connection and try again",
@@ -60,18 +54,15 @@ export function MapContainer() {
 
   }, [toast]);
 
-  if (!mapLoaded) {
-    return (
-      <Card className="w-full h-full flex items-center justify-center">
-        <Loader />
-      </Card>
-    );
-  }
-
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="absolute inset-0" />
       {mapRef.current && <ThreeJsOverlay map={mapRef.current} />}
+      {!mapLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader />
+        </div>
+      )}
     </div>
   );
 }
