@@ -21,7 +21,6 @@ export function MapContainer() {
         travelMode: google.maps.TravelMode.DRIVING,
       });
 
-      // Pass route data to ThreeJsOverlay
       const route = result.routes[0];
       if (route && route.overview_path) {
         const path = route.overview_path.map(point => ({
@@ -29,13 +28,10 @@ export function MapContainer() {
           lng: point.lng()
         }));
 
-        // Center the map on the route
         const bounds = new google.maps.LatLngBounds();
         path.forEach(point => bounds.extend(point));
         mapRef.current?.fitBounds(bounds);
 
-        // Update route visualization
-        // ThreeJsOverlay will handle this
         console.log('Route calculated:', path);
       }
     } catch (error) {
@@ -64,7 +60,8 @@ export function MapContainer() {
       try {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker,geometry,visualization&v=beta`;
+          // Include WebGL and vector specific libraries
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker,geometry,visualization&v=weekly&channel=2`;
           script.async = true;
           script.defer = true;
           script.onload = () => resolve();
@@ -76,23 +73,30 @@ export function MapContainer() {
 
         const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
 
-        // Initialize map with vector styling
+        // Initialize map with vector rendering
         const map = new Map(containerRef.current, {
           center: { lat: 22.3035, lng: 114.1599 },
           zoom: 19,
-          tilt: 67.5,
-          heading: 45,
+          tilt: 45,
+          heading: 0,
           mapId: "8e0a97af9386fef",
           disableDefaultUI: false,
-          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          // Use vector map styling
+          mapTypeId: 'roadmap',
           styles: [
             {
               featureType: "all",
               elementType: "geometry",
-              stylers: [{ visibility: "simplified" }]
+              stylers: [
+                { visibility: "simplified" },
+                { saturation: -60 },
+                { lightness: 10 }
+              ]
             }
           ],
-          streetViewControl: true,
+          // Required for proper WebGL overlay
+          backgroundColor: 'transparent',
+          streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: true,
           rotateControl: true,

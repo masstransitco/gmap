@@ -21,39 +21,56 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
     const scene = createScene();
     sceneRef.current = scene;
 
-    // Create the ThreeJS overlay view with WebGL state preservation
+    // Initialize the WebGL overlay with correct context attributes
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
       anchor: { lat: 22.3035, lng: 114.1599 },
       three: {
         camera: {
-          fov: 75,
+          fov: 45,
           near: 1,
           far: 2000,
         },
-        // Important: These options prevent flickering and ensure proper WebGL context
-        preserveDrawingBuffer: true,
-        alpha: true,
-        antialias: true,
-        logarithmicDepthBuffer: true,
+        // Critical: Set WebGL context attributes for proper overlay
+        contextAttributes: {
+          antialias: true,
+          preserveDrawingBuffer: true,
+          alpha: true,
+          stencil: true,
+          powerPreference: 'high-performance',
+        },
       },
     });
 
-    // Set up the overlay and ensure it's properly initialized
+    // Proper initialization sequence
     overlay.setMap(map);
+
+    // Handle WebGL context events
     overlay.onAdd = () => {
-      // WebGL context is now available
       console.log('Three.js overlay added to map');
 
-      // Start the render loop
+      // Begin render loop only after context is ready
       const animate = () => {
         if (sceneRef.current?.userData.update) {
           sceneRef.current.userData.update();
         }
+        overlay.requestRedraw();
         animationFrameRef.current = requestAnimationFrame(animate);
       };
       animate();
+    };
+
+    // Required: Handle context restoration
+    overlay.onContextRestored = () => {
+      console.log('WebGL context restored');
+      if (sceneRef.current) {
+        scene.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.material.needsUpdate = true;
+          }
+        });
+      }
     };
 
     overlayRef.current = overlay;
