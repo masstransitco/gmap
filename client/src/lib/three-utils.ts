@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 
 export function createScene() {
-  // Create scene
   const scene = new THREE.Scene();
 
   // Add lights for better visibility
@@ -21,22 +20,32 @@ export function createScene() {
     transparent: true,
     shininess: 50,
     side: THREE.DoubleSide,
+    depthTest: true,
+    depthWrite: true,
   });
 
   const cube = new THREE.Mesh(geometry, material);
 
-  // Position cube relative to the anchor point (which will be at ground level)
+  // Position cube relative to the anchor point
   cube.position.set(0, 100, 0); // Half height up to sit on ground
   cube.rotation.y = Math.PI / 4; // 45-degree rotation
 
+  // Add smooth rotation animation
+  const rotationSpeed = 0.002;
+  cube.userData.update = () => {
+    cube.rotation.y += rotationSpeed;
+  };
+
   scene.add(cube);
 
-  // Add animation
-  const animate = () => {
-    cube.rotation.y += 0.005;
-    requestAnimationFrame(animate);
+  // Add update method to the scene for animation
+  scene.userData.update = () => {
+    scene.traverse((object) => {
+      if (object.userData.update) {
+        object.userData.update();
+      }
+    });
   };
-  animate();
 
   return scene;
 }
