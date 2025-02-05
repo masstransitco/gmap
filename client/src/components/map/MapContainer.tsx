@@ -35,7 +35,7 @@ export function MapContainer() {
 
           await new Promise<void>((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker,geometry,visualization,webgl&v=beta`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker,geometry,visualization&v=beta`;
             script.async = true;
 
             script.onload = () => {
@@ -54,7 +54,6 @@ export function MapContainer() {
 
         console.log('Initializing map with Maps library...');
         const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-        await google.maps.importLibrary("webgl");
 
         // Center on Hong Kong's ICC building
         const map = new Map(containerRef.current, {
