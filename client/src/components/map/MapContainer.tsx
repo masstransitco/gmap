@@ -59,9 +59,22 @@ export function MapContainer() {
         const map = new Map(containerRef.current, {
           center: { lat: 40.7128, lng: -74.0060 },
           zoom: 15,
-          mapId: 'vector_map',
+          mapId: 'bf51a910020fa25a', // Vector map style ID
           disableDefaultUI: false,
-          mapTypeId: 'roadmap'
+          tilt: 45, // Enable initial tilt
+          heading: 0,
+          mapTypeId: 'roadmap',
+          mapTypeControl: false,
+          streetViewControl: true,
+          rotateControl: true, // Enable rotation control for 3D view
+        });
+
+        // Enable tilt with two fingers
+        map.setOptions({
+          gestureHandling: 'greedy',
+          // Additional controls for better 3D interaction
+          heading: 0,
+          tilt: 45,
         });
 
         console.log('Map initialized successfully');
