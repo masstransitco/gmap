@@ -27,19 +27,15 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
     };
 
     overlay.onContextRestored = ({ gl }) => {
-      // Use the provided WebGL context
-      if (rendererRef.current) {
-        const context = gl as WebGLRenderingContext;
-        rendererRef.current.setContext(context);
-        rendererRef.current.getContext().canvas.addEventListener('webglcontextlost', (e) => {
-          e.preventDefault();
-        });
-        rendererRef.current.getContext().canvas.addEventListener('webglcontextrestored', () => {
-          if (rendererRef.current) {
-            rendererRef.current.setAnimationLoop(null);
-          }
-        });
-      }
+      if (!rendererRef.current) return;
+
+      // Set up WebGL context
+      rendererRef.current.autoClear = false;
+      rendererRef.current.state.enable(gl.BLEND);
+      rendererRef.current.state.blendEquation(gl.FUNC_ADD);
+      rendererRef.current.state.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     };
 
     overlay.onDraw = ({ transformer }) => {

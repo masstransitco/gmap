@@ -7,7 +7,7 @@ export function initScene(container: HTMLDivElement) {
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
     antialias: true,
-    logarithmicDepthBuffer: true, // Better depth handling for overlay
+    logarithmicDepthBuffer: true,
   });
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -16,11 +16,11 @@ export function initScene(container: HTMLDivElement) {
   const camera = new THREE.PerspectiveCamera(
     75,
     container.clientWidth / container.clientHeight,
-    1, // Near plane
-    2000 // Far plane
+    1,
+    2000
   );
 
-  // Enhanced lighting for 3D objects
+  // Enhanced lighting for better visibility
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
 
@@ -29,31 +29,30 @@ export function initScene(container: HTMLDivElement) {
   directionalLight.castShadow = true;
   scene.add(directionalLight);
 
-  // Add sample 3D objects - making it larger and more visible
-  const geometry = new THREE.BoxGeometry(50, 50, 50);
+  // Create a larger, more visible cube
+  const geometry = new THREE.BoxGeometry(100, 100, 100);
   const material = new THREE.MeshPhongMaterial({
     color: 0x00ff00,
     opacity: 0.8,
     transparent: true,
   });
+
   const cube = new THREE.Mesh(geometry, material);
-  cube.position.set(0, 25, 0); // Lift it off the ground
+  cube.position.set(0, 50, 0); // Position the cube above ground level
   scene.add(cube);
 
   return { scene, renderer, camera };
 }
 
 export function updateSceneObjects(scene: THREE.Scene, matrix: Float64Array) {
-  // Update positions and rotations of objects based on map
   scene.traverse((object) => {
     if (object instanceof THREE.Mesh) {
-      // Rotate objects to match map perspective
+      // Animate rotation
       object.rotation.x += 0.01;
       object.rotation.y += 0.01;
 
-      // Keep the object elevated above the ground
-      const tilt = Math.PI / 4; // 45 degrees tilt
-      object.position.y = Math.sin(tilt) * 50; // Lift objects slightly above ground
+      // Maintain elevation above ground
+      object.position.y = Math.max(object.position.y, 50);
     }
   });
 }
