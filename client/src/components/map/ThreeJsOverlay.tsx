@@ -29,11 +29,7 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
     overlay.onContextRestored = ({ gl }) => {
       if (!rendererRef.current) return;
 
-      // Set up WebGL context
       rendererRef.current.autoClear = false;
-      rendererRef.current.state.enable(gl.BLEND);
-      rendererRef.current.state.blendEquation(gl.FUNC_ADD);
-      rendererRef.current.state.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     };

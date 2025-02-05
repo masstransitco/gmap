@@ -7,7 +7,6 @@ export function initScene(container: HTMLDivElement) {
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
     antialias: true,
-    logarithmicDepthBuffer: true,
   });
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
