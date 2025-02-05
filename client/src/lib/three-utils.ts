@@ -1,24 +1,8 @@
 import * as THREE from 'three';
 
-export function initScene(container: HTMLDivElement) {
+export function createScene() {
   // Create scene
   const scene = new THREE.Scene();
-
-  // Create and configure renderer
-  const renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true,
-  });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
-
-  // Create and position camera
-  const camera = new THREE.PerspectiveCamera(
-    75,
-    container.clientWidth / container.clientHeight,
-    1,
-    2000
-  );
 
   // Add lights for better visibility
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -33,25 +17,26 @@ export function initScene(container: HTMLDivElement) {
   const geometry = new THREE.BoxGeometry(30, 200, 30); // Tall building shape
   const material = new THREE.MeshPhongMaterial({
     color: 0x00ff00,
-    opacity: 1.0,
+    opacity: 0.8,
     transparent: true,
     shininess: 50,
     side: THREE.DoubleSide,
   });
 
   const cube = new THREE.Mesh(geometry, material);
-  // Position cube at half its height to sit on the ground
-  cube.position.set(0, 100, 0);
+
+  // Position cube relative to the anchor point (which will be at ground level)
+  cube.position.set(0, 100, 0); // Half height up to sit on ground
+  cube.rotation.y = Math.PI / 4; // 45-degree rotation
+
   scene.add(cube);
 
-  return { scene, renderer, camera };
-}
+  // Add animation
+  const animate = () => {
+    cube.rotation.y += 0.005;
+    requestAnimationFrame(animate);
+  };
+  animate();
 
-export function updateSceneObjects(scene: THREE.Scene, matrix: Float64Array) {
-  scene.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
-      // Add a subtle rotation animation
-      object.rotation.y += 0.005;
-    }
-  });
+  return scene;
 }
