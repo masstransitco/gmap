@@ -23,7 +23,7 @@ export function MapContainer() {
       }
 
       try {
-        // Load the Google Maps script
+        // Load the Google Maps script with necessary libraries
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
           script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker,geometry,visualization&v=beta`;
@@ -40,16 +40,20 @@ export function MapContainer() {
         const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
         const map = new Map(containerRef.current, {
           center: { lat: 22.3035, lng: 114.1599 }, // ICC Hong Kong
-          zoom: 18,
-          tilt: 45,
-          heading: 0,
-          mapTypeId: "roadmap", // Use standard roadmap instead of vector mapId
+          zoom: 19, // Increased zoom for better detail
+          tilt: 67.5, // Optimal tilt for 3D view
+          heading: 45, // Angled view
+          mapTypeId: 'satellite', // Use satellite view for better 3D
           disableDefaultUI: false,
           streetViewControl: true,
           mapTypeControl: true,
           fullscreenControl: true,
-          rotateControl: true
+          rotateControl: true,
         });
+
+        // Enable 3D buildings layer
+        const webglOverlayView = new google.maps.WebGLOverlayView();
+        webglOverlayView.setMap(map);
 
         mapRef.current = map;
         setMapLoaded(true);
