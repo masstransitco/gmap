@@ -29,14 +29,15 @@ export function initScene(container: HTMLDivElement) {
   directionalLight.castShadow = true;
   scene.add(directionalLight);
 
-  // Add sample 3D objects
-  const geometry = new THREE.BoxGeometry(30, 30, 30);
+  // Add sample 3D objects - making it larger and more visible
+  const geometry = new THREE.BoxGeometry(50, 50, 50);
   const material = new THREE.MeshPhongMaterial({
     color: 0x00ff00,
     opacity: 0.8,
     transparent: true,
   });
   const cube = new THREE.Mesh(geometry, material);
+  cube.position.set(0, 25, 0); // Lift it off the ground
   scene.add(cube);
 
   return { scene, renderer, camera };
@@ -50,7 +51,7 @@ export function updateSceneObjects(scene: THREE.Scene, matrix: Float64Array) {
       object.rotation.x += 0.01;
       object.rotation.y += 0.01;
 
-      // Adjust position based on map tilt
+      // Keep the object elevated above the ground
       const tilt = Math.PI / 4; // 45 degrees tilt
       object.position.y = Math.sin(tilt) * 50; // Lift objects slightly above ground
     }

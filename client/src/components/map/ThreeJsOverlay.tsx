@@ -30,6 +30,7 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
       // Use the provided WebGL context
       if (rendererRef.current) {
         const context = gl as WebGLRenderingContext;
+        rendererRef.current.setContext(context);
         rendererRef.current.getContext().canvas.addEventListener('webglcontextlost', (e) => {
           e.preventDefault();
         });
