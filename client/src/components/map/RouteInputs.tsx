@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RouteInputsProps {
   onRouteChange: (departure: string, arrival: string) => void;
@@ -20,47 +21,84 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
   const arrivalRef = useRef<HTMLInputElement>(null);
   const departureAutocompleteRef = useRef<google.maps.places.Autocomplete>();
   const arrivalAutocompleteRef = useRef<google.maps.places.Autocomplete>();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!departureRef.current || !arrivalRef.current || !window.google?.maps) return;
 
     // Initialize Google Places Autocomplete
     const initializeAutocomplete = async () => {
-      const { Autocomplete } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+      try {
+        const { Autocomplete } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
 
-      departureAutocompleteRef.current = new Autocomplete(departureRef.current!, {
-        types: ['establishment', 'geocode'],
-        fields: ['formatted_address', 'geometry']
-      });
+        // Configure autocomplete for departure
+        departureAutocompleteRef.current = new Autocomplete(departureRef.current!, {
+          fields: ['formatted_address', 'geometry', 'name'],
+          componentRestrictions: { country: 'hk' }, // Restrict to Hong Kong
+          types: ['establishment', 'geocode', 'address']
+        });
 
-      arrivalAutocompleteRef.current = new Autocomplete(arrivalRef.current!, {
-        types: ['establishment', 'geocode'],
-        fields: ['formatted_address', 'geometry']
-      });
+        // Configure autocomplete for arrival
+        arrivalAutocompleteRef.current = new Autocomplete(arrivalRef.current!, {
+          fields: ['formatted_address', 'geometry', 'name'],
+          componentRestrictions: { country: 'hk' }, // Restrict to Hong Kong
+          types: ['establishment', 'geocode', 'address']
+        });
 
-      // Add listeners to update state when place is selected
-      departureAutocompleteRef.current.addListener('place_changed', () => {
-        const place = departureAutocompleteRef.current?.getPlace();
-        if (place?.formatted_address && place.geometry?.location) {
-          setDeparture({
-            address: place.formatted_address,
-            location: place.geometry.location
-          });
-        }
-      });
+        // Add listeners to update state when place is selected
+        departureAutocompleteRef.current.addListener('place_changed', () => {
+          const place = departureAutocompleteRef.current?.getPlace();
+          if (place?.geometry?.location) {
+            setDeparture({
+              address: place.formatted_address || place.name || '',
+              location: place.geometry.location
+            });
+            toast({
+              title: "Departure Selected",
+              description: place.formatted_address || place.name,
+            });
+          } else {
+            setDeparture({ address: departureRef.current?.value || "" });
+            toast({
+              title: "Invalid Location",
+              description: "Please select a location from the dropdown suggestions",
+              variant: "destructive"
+            });
+          }
+        });
 
-      arrivalAutocompleteRef.current.addListener('place_changed', () => {
-        const place = arrivalAutocompleteRef.current?.getPlace();
-        if (place?.formatted_address && place.geometry?.location) {
-          setArrival({
-            address: place.formatted_address,
-            location: place.geometry.location
-          });
-        }
-      });
+        arrivalAutocompleteRef.current.addListener('place_changed', () => {
+          const place = arrivalAutocompleteRef.current?.getPlace();
+          if (place?.geometry?.location) {
+            setArrival({
+              address: place.formatted_address || place.name || '',
+              location: place.geometry.location
+            });
+            toast({
+              title: "Arrival Selected",
+              description: place.formatted_address || place.name,
+            });
+          } else {
+            setArrival({ address: arrivalRef.current?.value || "" });
+            toast({
+              title: "Invalid Location",
+              description: "Please select a location from the dropdown suggestions",
+              variant: "destructive"
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('Failed to initialize Places Autocomplete:', error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize location search",
+          variant: "destructive"
+        });
+      }
     };
 
-    initializeAutocomplete().catch(console.error);
+    initializeAutocomplete();
 
     // Cleanup
     return () => {
@@ -71,7 +109,7 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
         google.maps.event.clearInstanceListeners(arrivalAutocompleteRef.current);
       }
     };
-  }, []);
+  }, [toast]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +130,7 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
               <MapPin className="h-4 w-4 text-primary" />
               <Input
                 ref={departureRef}
-                placeholder="Departure point"
+                placeholder="Enter departure location"
                 value={departure.address}
                 onChange={(e) => setDeparture({ address: e.target.value })}
                 className="flex-1"
@@ -102,7 +140,7 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
               <MapPin className="h-4 w-4 text-destructive" />
               <Input
                 ref={arrivalRef}
-                placeholder="Arrival point"
+                placeholder="Enter arrival location"
                 value={arrival.address}
                 onChange={(e) => setArrival({ address: e.target.value })}
                 className="flex-1"
