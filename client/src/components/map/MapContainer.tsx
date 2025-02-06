@@ -41,10 +41,10 @@ export function MapContainer() {
 
         setRoutePath(path);
 
-        // Fit bounds
+        // Fit map bounds to show the entire route with padding
         const bounds = new google.maps.LatLngBounds();
         path.forEach(point => bounds.extend(point));
-        mapRef.current.fitBounds(bounds, {
+        mapRef.current?.fitBounds(bounds, {
           top: 50,
           right: 50,
           bottom: 50,
@@ -74,10 +74,12 @@ export function MapContainer() {
       return;
     }
 
+    // Load Google Maps API with proper initialization sequence
     const loadGoogleMaps = async () => {
       try {
         console.log('Starting Google Maps initialization...');
 
+        // Load the Google Maps script asynchronously
         await new Promise<void>((resolve, reject) => {
           if (window.google?.maps) {
             console.log('Google Maps already loaded');
@@ -87,7 +89,7 @@ export function MapContainer() {
           }
 
           const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=beta`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
           script.defer = true;
 
           script.onload = () => {
@@ -106,25 +108,30 @@ export function MapContainer() {
           document.head.appendChild(script);
         });
 
-        if (!containerRef.current) {
-          console.error('Map container not found');
-          return;
+        // Wait for the container to be available
+        while (isMounted && !containerRef.current) {
+          console.log('Waiting for map container...');
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        console.log('Initializing map...');
-        const map = new google.maps.Map(containerRef.current, {
+        if (!isMounted) return;
+
+        console.log('Map container found, initializing map...');
+
+        // Initialize map with correct configuration for WebGL overlay
+        const map = new google.maps.Map(containerRef.current!, {
           center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
           zoom: 15,
           tilt: 45,
           heading: 0,
-          mapId: "8e0a97af9386fef", // Updated Vector map ID
+          mapId: "15431d2b469f209e", // Vector tiles map ID
           disableDefaultUI: false,
-          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          mapTypeId: 'roadmap',
           backgroundColor: 'transparent',
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: true,
-          rotateControl: true
+          rotateControl: true,
         });
 
         if (isMounted) {

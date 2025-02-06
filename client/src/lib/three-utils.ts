@@ -14,21 +14,33 @@ export function createMarkerCube(color: number = 0x00ff00) {
   });
 
   const cube = new THREE.Mesh(geometry, material);
+
+  // Add animation
+  const animate = () => {
+    if (cube) {
+      cube.rotation.y += 0.01;
+      cube.position.y += Math.sin(Date.now() * 0.002) * 0.5; // Reduced floating animation range
+    }
+  };
+
+  cube.userData.animate = animate;
   return cube;
 }
 
-export function createRouteLine(points: THREE.Vector3[]) {
+export function createRouteLine(points: THREE.Vector3[], color: number = 0x0088ff) {
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
-    color: 0x0088ff,
-    linewidth: 3,
+    color,
+    linewidth: 5, // Increased line width
     transparent: true,
     opacity: 0.8,
   });
 
   const line = new THREE.Line(geometry, material);
-  // Elevate the line slightly to prevent z-fighting
+
+  // Elevate the line to prevent z-fighting but keep it close to ground
   line.position.y = 5;
+
   return line;
 }
 
@@ -43,6 +55,15 @@ export function createScene() {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
   directionalLight.position.set(0.5, 1, 0.5);
   scene.add(directionalLight);
+
+  // Add update method to the scene for animation
+  scene.userData.update = () => {
+    scene.children.forEach(child => {
+      if (child.userData.animate) {
+        child.userData.animate();
+      }
+    });
+  };
 
   return scene;
 }
