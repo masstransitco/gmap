@@ -4,10 +4,16 @@ import { useToast } from "@/hooks/use-toast";
 import { ThreeJsOverlay } from "./ThreeJsOverlay";
 import { RouteInputs } from "./RouteInputs";
 
+interface RoutePath {
+  lat: number;
+  lng: number;
+}
+
 export function MapContainer() {
   const mapRef = useRef<google.maps.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [routePath, setRoutePath] = useState<RoutePath[]>([]);
   const { toast } = useToast();
 
   const handleRouteChange = async (departure: string, arrival: string) => {
@@ -28,6 +34,9 @@ export function MapContainer() {
           lng: point.lng()
         }));
 
+        setRoutePath(path);
+
+        // Fit map bounds to show the entire route
         const bounds = new google.maps.LatLngBounds();
         path.forEach(point => bounds.extend(point));
         mapRef.current?.fitBounds(bounds);
@@ -61,7 +70,7 @@ export function MapContainer() {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
           // Include WebGL and vector specific libraries
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker,geometry,visualization&v=weekly&channel=2`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,routes&v=weekly`;
           script.async = true;
           script.defer = true;
           script.onload = () => resolve();
@@ -81,7 +90,6 @@ export function MapContainer() {
           heading: 0,
           mapId: "8e0a97af9386fef",
           disableDefaultUI: false,
-          // Use vector map styling
           mapTypeId: 'roadmap',
           styles: [
             {
@@ -94,7 +102,6 @@ export function MapContainer() {
               ]
             }
           ],
-          // Required for proper WebGL overlay
           backgroundColor: 'transparent',
           streetViewControl: false,
           mapTypeControl: false,
@@ -126,7 +133,12 @@ export function MapContainer() {
           <Loader />
         </div>
       )}
-      {mapRef.current && mapLoaded && <ThreeJsOverlay map={mapRef.current} />}
+      {mapRef.current && mapLoaded && (
+        <ThreeJsOverlay 
+          map={mapRef.current} 
+          routePath={routePath}
+        />
+      )}
       <RouteInputs onRouteChange={handleRouteChange} />
     </div>
   );

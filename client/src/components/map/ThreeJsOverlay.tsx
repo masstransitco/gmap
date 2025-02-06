@@ -3,11 +3,17 @@ import * as THREE from 'three';
 import { ThreeJSOverlayView } from '@googlemaps/three';
 import { createScene } from '@/lib/three-utils';
 
-interface ThreeJsOverlayProps {
-  map: google.maps.Map;
+interface RoutePath {
+  lat: number;
+  lng: number;
 }
 
-export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
+interface ThreeJsOverlayProps {
+  map: google.maps.Map;
+  routePath: RoutePath[];
+}
+
+export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
   const overlayRef = useRef<ThreeJSOverlayView>();
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -115,7 +121,7 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
   }, [map]);
 
   // Function to update route visualization
-  const updateRoute = (path: { lat: number; lng: number }[]) => {
+  const updateRoute = (path: RoutePath[]) => {
     if (!sceneRef.current) return;
 
     // Clear previous route objects
@@ -173,6 +179,13 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
       sceneRef.current.add(routeLine);
     }
   };
+
+  // Update route visualization when path changes
+  useEffect(() => {
+    if (routePath.length > 0) {
+      updateRoute(routePath);
+    }
+  }, [routePath]);
 
   return null;
 }
