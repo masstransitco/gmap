@@ -17,7 +17,6 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
   const overlayRef = useRef<ThreeJSOverlayView>();
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
-  const projectionRef = useRef<google.maps.Projection>();
 
   useEffect(() => {
     if (!map) return;
@@ -29,20 +28,12 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
-      anchor: new google.maps.LatLng(0, 0),
+      anchor: { lat: 22.3035, lng: 114.1599 }, // Hong Kong center coordinates
       three: {
         camera: {
           fov: 45,
           near: 1,
           far: 2000,
-        },
-        contextAttributes: {
-          antialias: true,
-          preserveDrawingBuffer: false,
-          alpha: true,
-          stencil: true,
-          depth: true,
-          powerPreference: 'high-performance',
         },
       },
     });
@@ -51,9 +42,6 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     overlay.onAdd = () => {
       console.log('Three.js overlay added to map');
-      // Store the projection for later use
-      projectionRef.current = overlay.getMap().getProjection();
-
       const animate = () => {
         if (sceneRef.current?.userData.update) {
           sceneRef.current.userData.update();
@@ -76,8 +64,6 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.autoClear = false;
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
       rendererRef.current = renderer;
     };
@@ -86,7 +72,22 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       const camera = overlay.getCamera();
       if (!camera || !rendererRef.current || !sceneRef.current) return;
 
-      overlay.requestRedraw();
+      // Update positions for route and markers if they exist
+      if (routePath.length > 1) {
+        sceneRef.current.children.forEach(child => {
+          if (child.userData.isRoute) {
+            if (child.userData.originalLatLng) {
+              const matrix = transformer.fromLatLngAltitude({
+                lat: child.userData.originalLatLng.lat,
+                lng: child.userData.originalLatLng.lng,
+                altitude: child.userData.altitude || 0
+              });
+              child.matrix.set(...matrix);
+            }
+          }
+        });
+      }
+
       rendererRef.current.render(sceneRef.current, camera);
       rendererRef.current.resetState();
     };
@@ -116,7 +117,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
   }, [map]);
 
   useEffect(() => {
-    if (!sceneRef.current || !overlayRef.current || !projectionRef.current || routePath.length === 0) return;
+    if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
 
     console.log('Updating route visualization with path:', routePath);
 
@@ -134,41 +135,43 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     });
 
     if (routePath.length > 1) {
-      const MARKER_HEIGHT = 100; // Consistent height for both markers
+      const MARKER_HEIGHT = 100;
 
-      // Convert all route points to world coordinates using the stored projection
-      const worldPoints = routePath.map(point => {
-        const latLng = new google.maps.LatLng(point.lat, point.lng);
-        const worldPoint = overlayRef.current!.latLngAltitudeToVector3(latLng, 0);
-        return {
-          position: worldPoint,
-          original: point
-        };
-      });
+      try {
+        // Create departure marker (green)
+        const departureMarker = createMarkerCube(0x00ff00);
+        departureMarker.userData.isRoute = true;
+        departureMarker.userData.originalLatLng = routePath[0];
+        departureMarker.userData.altitude = MARKER_HEIGHT;
+        sceneRef.current.add(departureMarker);
 
-      // Create and position the departure marker (green)
-      const startPoint = worldPoints[0].position.clone();
-      const departureMarker = createMarkerCube(0x00ff00);
-      departureMarker.position.copy(startPoint);
-      departureMarker.position.y = MARKER_HEIGHT; // Set exact height
-      departureMarker.userData.isRoute = true;
-      sceneRef.current.add(departureMarker);
+        // Create arrival marker (red)
+        const arrivalMarker = createMarkerCube(0xff0000);
+        arrivalMarker.userData.isRoute = true;
+        arrivalMarker.userData.originalLatLng = routePath[routePath.length - 1];
+        arrivalMarker.userData.altitude = MARKER_HEIGHT;
+        sceneRef.current.add(arrivalMarker);
 
-      // Create and position the arrival marker (red)
-      const endPoint = worldPoints[worldPoints.length - 1].position.clone();
-      const arrivalMarker = createMarkerCube(0xff0000);
-      arrivalMarker.position.copy(endPoint);
-      arrivalMarker.position.y = MARKER_HEIGHT; // Same exact height as departure
-      arrivalMarker.userData.isRoute = true;
-      sceneRef.current.add(arrivalMarker);
+        // Create points for the route line
+        const points = routePath.map((point, index) => {
+          const matrix = overlayRef.current!.transformer.fromLatLngAltitude({
+            lat: point.lat,
+            lng: point.lng,
+            altitude: 0
+          });
+          return new THREE.Vector3(matrix[12], matrix[13], matrix[14]);
+        });
 
-      // Create the route line using all path points
-      const routeLine = createRouteLine(worldPoints.map(p => p.position));
-      routeLine.userData.isRoute = true;
-      sceneRef.current.add(routeLine);
+        // Create route line
+        const routeLine = createRouteLine(points);
+        routeLine.userData.isRoute = true;
+        sceneRef.current.add(routeLine);
 
-      overlayRef.current.requestRedraw();
-      console.log('Route visualization updated');
+        overlayRef.current.requestRedraw();
+        console.log('Route visualization updated successfully');
+      } catch (error) {
+        console.error('Error updating route visualization:', error);
+      }
     }
   }, [routePath]);
 

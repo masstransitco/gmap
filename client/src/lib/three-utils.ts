@@ -2,25 +2,25 @@ import * as THREE from 'three';
 
 export function createMarkerCube(color: number = 0x00ff00) {
   // Create a cube geometry for the marker
-  const geometry = new THREE.BoxGeometry(20, 40, 20); // Standard size for both markers
+  const geometry = new THREE.BoxGeometry(5, 10, 5); // Smaller size for better scale
   const material = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
     opacity: 0.8,
-    // Critical settings to prevent flickering
     depthWrite: true,
     depthTest: true,
     side: THREE.DoubleSide,
   });
 
   const cube = new THREE.Mesh(geometry, material);
+  cube.renderOrder = 2; // Ensure markers render above the route line
 
-  // Add animation
+  // Add subtle animation
   const animate = () => {
     if (cube) {
       cube.rotation.y += 0.01;
-      // Small floating animation that doesn't affect the base height
-      cube.position.y += Math.sin(Date.now() * 0.002) * 0.2;
+      // Very subtle floating animation
+      cube.position.y += Math.sin(Date.now() * 0.002) * 0.05;
     }
   };
 
@@ -32,16 +32,14 @@ export function createRouteLine(points: THREE.Vector3[], color: number = 0x0088f
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
     color,
-    linewidth: 3,
+    linewidth: 2,
     transparent: true,
     opacity: 0.8,
+    depthWrite: false, // Allow line to be seen through objects
   });
 
   const line = new THREE.Line(geometry, material);
-
-  // Keep the line exactly at ground level
-  line.position.y = 0;
-
+  line.renderOrder = 1; // Ensure line renders above ground but below markers
   return line;
 }
 
