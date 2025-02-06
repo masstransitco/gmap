@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 export function createMarkerCube(color: number = 0x00ff00) {
   // Create a cube geometry for the marker
-  const geometry = new THREE.BoxGeometry(5, 10, 5); // Smaller size to match map scale
+  const geometry = new THREE.BoxGeometry(20, 40, 20);
   const material = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
@@ -14,13 +14,12 @@ export function createMarkerCube(color: number = 0x00ff00) {
   });
 
   const cube = new THREE.Mesh(geometry, material);
-  cube.castShadow = true;
-  cube.receiveShadow = true;
 
   // Add animation
   const animate = () => {
     if (cube) {
-      cube.rotation.y += 0.02;
+      cube.rotation.y += 0.01;
+      cube.position.y = 20 + Math.sin(Date.now() * 0.002) * 5; // Floating animation
     }
   };
 
@@ -29,19 +28,19 @@ export function createMarkerCube(color: number = 0x00ff00) {
 }
 
 export function createRouteLine(points: THREE.Vector3[], color: number = 0x0088ff) {
-  // Create a smooth curve through the points
-  const curve = new THREE.CatmullRomCurve3(points);
-  const curvePoints = curve.getPoints(50 * points.length); // More points for smoother curve
-
-  const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
     color,
-    linewidth: 2,
+    linewidth: 3,
     transparent: true,
     opacity: 0.8,
   });
 
   const line = new THREE.Line(geometry, material);
+
+  // Elevate the line slightly to prevent z-fighting
+  line.position.y = 2;
+
   return line;
 }
 
@@ -55,7 +54,6 @@ export function createScene() {
   // Add directional light for shadows and depth
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
   directionalLight.position.set(0.5, 1, 0.5);
-  directionalLight.castShadow = true;
   scene.add(directionalLight);
 
   // Add update method to the scene for animation

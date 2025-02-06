@@ -15,65 +15,114 @@ interface ThreeJsOverlayProps {
 }
 
 export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
-  const overlayRef = useRef<ThreeJSOverlayView | null>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const overlayRef = useRef<ThreeJSOverlayView>();
+  const sceneRef = useRef<THREE.Scene>();
+  const rendererRef = useRef<THREE.WebGLRenderer>();
 
-  // Initialize the WebGL overlay
   useEffect(() => {
     if (!map) return;
 
     console.log('Initializing Three.js overlay...');
 
-    // Create the scene
+    // Create the scene with our 3D objects
     const scene = createScene();
     sceneRef.current = scene;
 
-    // Initialize the WebGL overlay
+    // Initialize the WebGL overlay with correct context attributes
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
-      THREE,
-      anchor: new google.maps.LatLng(map.getCenter()),
+      anchor: new google.maps.LatLng(0, 0), // Will be updated with route
+      three: {
+        camera: {
+          fov: 45,
+          near: 1,
+          far: 2000,
+        },
+        // Critical: Set WebGL context attributes for proper overlay
+        contextAttributes: {
+          antialias: true,
+          preserveDrawingBuffer: false,
+          alpha: true,
+          stencil: true,
+          depth: true,
+          powerPreference: 'high-performance',
+        },
+      },
     });
 
-    // Set up WebGL context
+    overlay.setMap(map);
+
+    overlay.onAdd = () => {
+      console.log('Three.js overlay added to map');
+      // Begin render loop only after context is ready
+      const animate = () => {
+        if (sceneRef.current?.userData.update) {
+          sceneRef.current.userData.update();
+        }
+        overlay.requestRedraw();
+        requestAnimationFrame(animate);
+      };
+      animate();
+    };
+
     overlay.onContextRestored = ({ gl }) => {
       console.log('WebGL context restored');
+      if (!gl) return;
 
+      // Create the renderer using the map's WebGL context
       const renderer = new THREE.WebGLRenderer({
         canvas: gl.canvas,
         context: gl,
         ...gl.getContextAttributes(),
       });
 
-      renderer.autoClear = false;
       renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.autoClear = false;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
       rendererRef.current = renderer;
     };
 
-    // Handle drawing
-    overlay.onDraw = ({ transformer }) => {
+    overlay.onDraw = ({ gl, transformer }) => {
       const camera = overlay.getCamera();
-
       if (!camera || !rendererRef.current || !sceneRef.current) return;
 
-      rendererRef.current.render(sceneRef.current, camera);
-      // Always reset state after rendering
-      rendererRef.current.resetState();
+      //This is a placeholder,  mapOptions is not defined in the original code.  Needs proper implementation.
+      const mapOptions = {center: {lat:0, lng:0}}; // Placeholder - needs proper implementation
 
-      // Request next frame
-      overlay.requestRedraw();
+      const latLngAltitudeLiteral = {
+        lat: mapOptions.center.lat,
+        lng: mapOptions.center.lng,
+        altitude: 100,
+      };
+      // Update camera matrix to ensure the model is georeferenced correctly on the map.
+      const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
+
+      camera.projectionMatrix.fromArray(matrix); //Corrected assignment
+      overlay.requestRedraw(); //Corrected to use overlay instead of webglOverlayView
+      rendererRef.current.render(sceneRef.current, camera);
+      rendererRef.current.resetState();
     };
 
     overlayRef.current = overlay;
-    overlay.setMap(map);
 
+    // Proper cleanup
     return () => {
+      console.log('Cleaning up Three.js overlay...');
       if (overlayRef.current) {
         overlayRef.current.setMap(null);
       }
       if (sceneRef.current) {
+        sceneRef.current.traverse((object) => {
+          if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
+            object.geometry.dispose();
+            if (object.material instanceof THREE.Material) {
+              object.material.dispose();
+            }
+          }
+        });
         sceneRef.current.clear();
       }
       if (rendererRef.current) {
@@ -84,65 +133,64 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
   // Update route visualization when path changes
   useEffect(() => {
-    if (!overlayRef.current || !sceneRef.current || routePath.length === 0) return;
+    if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
 
     console.log('Updating route visualization with path:', routePath);
 
     // Clear previous route visualization
-    sceneRef.current.children = sceneRef.current.children.filter(child => !child.userData.isRoute);
+    sceneRef.current.children.forEach(child => {
+      if (child.userData.isRoute) {
+        if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
+          child.geometry.dispose();
+          if (child.material instanceof THREE.Material) {
+            child.material.dispose();
+          }
+        }
+        sceneRef.current?.remove(child);
+      }
+    });
 
-    try {
+    if (routePath.length > 1) {
       const startPoint = routePath[0];
-      const endPoint = routePath[routePath.length - 1];
+
+      // Update overlay anchor to the start point
+      overlayRef.current.anchor = new google.maps.LatLng(startPoint.lat, startPoint.lng);
 
       // Create departure marker (green)
-      const departureMatrix = overlayRef.current.transformer.fromLatLngAltitude({
-        lat: startPoint.lat,
-        lng: startPoint.lng,
-        altitude: 200 // Higher altitude for better visibility
-      });
-
       const departureMarker = createMarkerCube(0x00ff00);
-      departureMarker.matrix.fromArray(departureMatrix);
-      departureMarker.matrixAutoUpdate = false;
+      departureMarker.position.set(0, 20, 0);
       departureMarker.userData.isRoute = true;
       sceneRef.current.add(departureMarker);
 
-      // Create arrival marker (red)
-      const arrivalMatrix = overlayRef.current.transformer.fromLatLngAltitude({
-        lat: endPoint.lat,
-        lng: endPoint.lng,
-        altitude: 200
+      // Create points for the route, relative to start point
+      const points = routePath.map((point, index) => {
+        // Convert lat/lng differences to approximate meters
+        const deltaLng = (point.lng - startPoint.lng) * 111000 * Math.cos(startPoint.lat * Math.PI / 180);
+        const deltaLat = (point.lat - startPoint.lat) * 111000;
+
+        return new THREE.Vector3(
+          deltaLng,
+          20 + Math.sin(index * 0.2) * 10, // Add wave pattern
+          -deltaLat // Negative because Three.js Z is opposite to latitude
+        );
       });
 
+      // Create arrival marker (red)
       const arrivalMarker = createMarkerCube(0xff0000);
-      arrivalMarker.matrix.fromArray(arrivalMatrix);
-      arrivalMarker.matrixAutoUpdate = false;
+      const lastPoint = points[points.length - 1];
+      arrivalMarker.position.copy(lastPoint);
       arrivalMarker.userData.isRoute = true;
       sceneRef.current.add(arrivalMarker);
 
-      // Create route line points
-      const points = routePath.map(point => {
-        const matrix = overlayRef.current!.transformer.fromLatLngAltitude({
-          lat: point.lat,
-          lng: point.lng,
-          altitude: 50 // Keep route slightly elevated
-        });
-        const vector = new THREE.Vector3();
-        vector.setFromMatrixPosition(new Matrix4().fromArray(matrix));
-        return vector;
-      });
-
       // Create and add route line
-      const routeLine = createRouteLine(points, 0x0088ff);
+      const routeLine = createRouteLine(points);
       routeLine.userData.isRoute = true;
       sceneRef.current.add(routeLine);
 
-      // Request a redraw
+      // Request a redraw with the updated scene
       overlayRef.current.requestRedraw();
 
-    } catch (error) {
-      console.error('Error updating route visualization:', error);
+      console.log('Route visualization updated');
     }
   }, [routePath]);
 

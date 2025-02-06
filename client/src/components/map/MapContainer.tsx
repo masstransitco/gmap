@@ -74,10 +74,12 @@ export function MapContainer() {
       return;
     }
 
+    // Load Google Maps API with proper initialization sequence
     const loadGoogleMaps = async () => {
       try {
         console.log('Starting Google Maps initialization...');
 
+        // Load the Google Maps script asynchronously
         await new Promise<void>((resolve, reject) => {
           if (window.google?.maps) {
             console.log('Google Maps already loaded');
@@ -87,7 +89,7 @@ export function MapContainer() {
           }
 
           const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=beta`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
           script.defer = true;
 
           script.onload = () => {
@@ -106,6 +108,7 @@ export function MapContainer() {
           document.head.appendChild(script);
         });
 
+        // Wait for the container to be available
         while (isMounted && !containerRef.current) {
           console.log('Waiting for map container...');
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -115,15 +118,15 @@ export function MapContainer() {
 
         console.log('Map container found, initializing map...');
 
-        // Initialize map with Vector Map support
+        // Initialize map with correct configuration for WebGL overlay
         const map = new google.maps.Map(containerRef.current!, {
           center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
           zoom: 15,
           tilt: 45,
           heading: 0,
-          mapId: "8f075a9bf7e81e0d", // Vector map ID for WebGL
+          mapId: "15431d2b469f209e", // Vector tiles map ID
           disableDefaultUI: false,
-          mapTypeId: google.maps.MapTypeId.VECTOR,
+          mapTypeId: 'roadmap',
           backgroundColor: 'transparent',
           streetViewControl: false,
           mapTypeControl: false,
@@ -133,13 +136,8 @@ export function MapContainer() {
 
         if (isMounted) {
           mapRef.current = map;
-          // Wait for the map to be fully loaded before setting mapLoaded
-          google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
-            if (isMounted) {
-              setMapLoaded(true);
-              console.log('Map initialized successfully');
-            }
-          });
+          setMapLoaded(true);
+          console.log('Map initialized successfully');
         }
 
       } catch (error) {
