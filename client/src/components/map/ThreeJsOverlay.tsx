@@ -67,12 +67,9 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
             altitude: 100
           });
 
-          if (startMatrix) {
-            departureMarker.matrix.fromArray(startMatrix);
-            departureMarker.matrixAutoUpdate = false;
-            sceneRef.current.add(departureMarker);
-            console.log('Added departure marker');
-          }
+          departureMarker.applyMatrix4(new THREE.Matrix4().fromArray(startMatrix));
+          sceneRef.current.add(departureMarker);
+          console.log('Added departure marker');
 
           // Create arrival marker (red)
           const arrivalMarker = createMarkerCube(0xff0000);
@@ -84,27 +81,25 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
             altitude: 100
           });
 
-          if (endMatrix) {
-            arrivalMarker.matrix.fromArray(endMatrix);
-            arrivalMarker.matrixAutoUpdate = false;
-            sceneRef.current.add(arrivalMarker);
-            console.log('Added arrival marker');
-          }
+          arrivalMarker.applyMatrix4(new THREE.Matrix4().fromArray(endMatrix));
+          sceneRef.current.add(arrivalMarker);
+          console.log('Added arrival marker');
         } catch (error) {
           console.error('Error placing markers:', error);
         }
       }
 
       // Update camera matrix for proper projection
-      const cameraMatrix = transformer.fromLatLngAltitude({
-        lat: map.getCenter().lat(),
-        lng: map.getCenter().lng(),
+      const matrix = transformer.fromLatLngAltitude({
+        lat: map.getCenter()?.lat() || 0,
+        lng: map.getCenter()?.lng() || 0,
         altitude: 120
       });
 
-      if (cameraMatrix) {
-        cameraRef.current.projectionMatrix.fromArray(cameraMatrix);
-      }
+      cameraRef.current.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
+
+      // Request a redraw before rendering
+      webglOverlayView.requestRedraw();
 
       // Render the scene
       rendererRef.current.render(sceneRef.current, cameraRef.current);
