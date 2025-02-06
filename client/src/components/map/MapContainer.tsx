@@ -11,6 +11,7 @@ interface RoutePath {
 
 export function MapContainer() {
   const mapRef = useRef<google.maps.Map | null>(null);
+  const polylineRef = useRef<google.maps.Polyline | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isLoadingScript, setIsLoadingScript] = useState(true);
@@ -41,7 +42,24 @@ export function MapContainer() {
 
         setRoutePath(path);
 
-        // Fit map bounds to show the entire route with padding
+        // Clear existing polyline
+        if (polylineRef.current) {
+          polylineRef.current.setMap(null);
+        }
+
+        // Create new polyline for the route
+        const polyline = new google.maps.Polyline({
+          path: path,
+          geodesic: true,
+          strokeColor: '#0088FF',
+          strokeOpacity: 0.8,
+          strokeWeight: 3
+        });
+
+        polyline.setMap(mapRef.current);
+        polylineRef.current = polyline;
+
+        // Fit map bounds to show the entire route
         const bounds = new google.maps.LatLngBounds();
         path.forEach(point => bounds.extend(point));
         mapRef.current?.fitBounds(bounds, {
@@ -115,7 +133,7 @@ export function MapContainer() {
 
         console.log('Map container found, initializing map...');
 
-        const map = new google.maps.Map(containerRef.current!, {
+        const mapOptions = {
           center: { lat: 22.3035, lng: 114.1599 },
           zoom: 15,
           tilt: 45,
@@ -128,7 +146,9 @@ export function MapContainer() {
           mapTypeControl: false,
           fullscreenControl: true,
           rotateControl: true,
-        });
+        };
+
+        const map = new google.maps.Map(containerRef.current!, mapOptions);
 
         if (isMounted) {
           mapRef.current = map;
@@ -153,6 +173,9 @@ export function MapContainer() {
 
     return () => {
       isMounted = false;
+      if (polylineRef.current) {
+        polylineRef.current.setMap(null);
+      }
     };
   }, [toast]);
 

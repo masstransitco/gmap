@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { ThreeJSOverlayView } from '@googlemaps/three';
-import { createMarkerCube, createRouteLine } from '@/lib/three-utils';
+import { createMarkerCube } from '@/lib/three-utils';
 
 interface RoutePath {
   lat: number;
@@ -22,31 +22,32 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     console.log('Initializing Three.js overlay...');
 
-    // Create scene with proper lighting following the example
+    // Create scene with proper lighting
     const scene = new THREE.Scene();
+
+    // Add ambient light for base illumination
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
     scene.add(ambientLight);
 
+    // Add directional light for shadows
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
     directionalLight.position.set(0, 10, 50);
     scene.add(directionalLight);
 
     sceneRef.current = scene;
 
-    // Initialize overlay with proper settings
+    // Initialize overlay with the basic setup from example
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
-      anchor: { lat: 22.3035, lng: 114.1599, altitude: 100 },
+      anchor: new google.maps.LatLng(22.3035, 114.1599),
       THREE,
     });
 
     overlay.setMap(map);
-
     overlayRef.current = overlay;
 
     return () => {
-      console.log('Cleaning up Three.js overlay...');
       if (overlayRef.current) {
         overlayRef.current.setMap(null);
       }
@@ -59,60 +60,33 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
   useEffect(() => {
     if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
 
-    console.log('Updating route visualization with path:', routePath);
+    console.log('Updating 3D markers for route endpoints');
 
-    // Clear previous route objects
-    sceneRef.current.children.forEach(child => {
-      if (child.userData.isRoute) {
-        sceneRef.current?.remove(child);
-      }
-    });
+    // Clear previous markers
+    sceneRef.current.children = sceneRef.current.children.filter(child => !child.userData.isRoute);
 
     if (routePath.length > 1) {
       try {
-        // Set new anchor point to start of route
-        overlayRef.current.anchor = {
-          lat: routePath[0].lat,
-          lng: routePath[0].lng,
-          altitude: 100
-        };
-
-        // Create departure marker (green)
+        // Create departure marker (green) at elevation
         const departureMarker = createMarkerCube(0x00ff00);
         departureMarker.userData.isRoute = true;
-        const startPos = overlayRef.current.latLngAltitudeToVector3(
-          { lat: routePath[0].lat, lng: routePath[0].lng },
-          50
-        );
+        const startLatLng = new google.maps.LatLng(routePath[0].lat, routePath[0].lng);
+        const startPos = overlayRef.current.latLngAltitudeToVector3(startLatLng, 50);
         departureMarker.position.copy(startPos);
         sceneRef.current.add(departureMarker);
 
-        // Create arrival marker (red)
+        // Create arrival marker (red) at elevation
         const arrivalMarker = createMarkerCube(0xff0000);
         arrivalMarker.userData.isRoute = true;
-        const endPos = overlayRef.current.latLngAltitudeToVector3(
-          { lat: routePath[routePath.length - 1].lat, lng: routePath[routePath.length - 1].lng },
-          50
-        );
+        const endLatLng = new google.maps.LatLng(routePath[routePath.length - 1].lat, routePath[routePath.length - 1].lng);
+        const endPos = overlayRef.current.latLngAltitudeToVector3(endLatLng, 50);
         arrivalMarker.position.copy(endPos);
         sceneRef.current.add(arrivalMarker);
 
-        // Create route line
-        const points = routePath.map(point => {
-          return overlayRef.current!.latLngAltitudeToVector3(
-            { lat: point.lat, lng: point.lng },
-            0
-          );
-        });
-
-        const routeLine = createRouteLine(points);
-        routeLine.userData.isRoute = true;
-        sceneRef.current.add(routeLine);
-
         overlayRef.current.requestRedraw();
-        console.log('Route visualization updated successfully');
+        console.log('3D markers updated successfully');
       } catch (error) {
-        console.error('Error updating route visualization:', error);
+        console.error('Error updating 3D markers:', error);
       }
     }
   }, [routePath]);
