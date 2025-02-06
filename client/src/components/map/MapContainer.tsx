@@ -74,12 +74,10 @@ export function MapContainer() {
       return;
     }
 
-    // Load Google Maps API with proper initialization sequence
     const loadGoogleMaps = async () => {
       try {
         console.log('Starting Google Maps initialization...');
 
-        // Load the Google Maps script asynchronously
         await new Promise<void>((resolve, reject) => {
           if (window.google?.maps) {
             console.log('Google Maps already loaded');
@@ -108,7 +106,6 @@ export function MapContainer() {
           document.head.appendChild(script);
         });
 
-        // Wait for the container to be available
         while (isMounted && !containerRef.current) {
           console.log('Waiting for map container...');
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -118,13 +115,12 @@ export function MapContainer() {
 
         console.log('Map container found, initializing map...');
 
-        // Initialize map with correct configuration for WebGL overlay
         const map = new google.maps.Map(containerRef.current!, {
-          center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
+          center: { lat: 22.3035, lng: 114.1599 },
           zoom: 15,
           tilt: 45,
           heading: 0,
-          mapId: "15431d2b469f209e", // Vector tiles map ID
+          mapId: "15431d2b469f209e",
           disableDefaultUI: false,
           mapTypeId: 'roadmap',
           backgroundColor: 'transparent',

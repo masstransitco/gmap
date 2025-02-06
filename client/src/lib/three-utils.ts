@@ -1,45 +1,30 @@
 import * as THREE from 'three';
 
 export function createMarkerCube(color: number = 0x00ff00) {
-  // Create a cube geometry for the marker
-  const geometry = new THREE.BoxGeometry(5, 10, 5); // Smaller size for better scale
+  // Create a simple cube geometry for the marker
+  const geometry = new THREE.BoxGeometry(2, 4, 2);
   const material = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
     opacity: 0.8,
-    depthWrite: true,
-    depthTest: true,
-    side: THREE.DoubleSide,
   });
 
   const cube = new THREE.Mesh(geometry, material);
-  cube.renderOrder = 2; // Ensure markers render above the route line
-
-  // Add subtle animation
-  const animate = () => {
-    if (cube) {
-      cube.rotation.y += 0.01;
-      // Very subtle floating animation
-      cube.position.y += Math.sin(Date.now() * 0.002) * 0.05;
-    }
-  };
-
-  cube.userData.animate = animate;
+  cube.renderOrder = 1; // Ensure markers render on top
   return cube;
 }
 
-export function createRouteLine(points: THREE.Vector3[], color: number = 0x0088ff) {
+export function createRouteLine(points: THREE.Vector3[]) {
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
-    color,
+    color: 0x0088ff,
     linewidth: 2,
     transparent: true,
     opacity: 0.8,
-    depthWrite: false, // Allow line to be seen through objects
   });
 
   const line = new THREE.Line(geometry, material);
-  line.renderOrder = 1; // Ensure line renders above ground but below markers
+  line.renderOrder = 0; // Render below markers
   return line;
 }
 
@@ -51,18 +36,9 @@ export function createScene() {
   scene.add(ambientLight);
 
   // Add directional light for shadows and depth
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-  directionalLight.position.set(0.5, 1, 0.5);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
+  directionalLight.position.set(0, 10, 50);
   scene.add(directionalLight);
-
-  // Add update method to the scene for animation
-  scene.userData.update = () => {
-    scene.children.forEach(child => {
-      if (child.userData.animate) {
-        child.userData.animate();
-      }
-    });
-  };
 
   return scene;
 }
