@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { ThreeJSOverlayView } from '@googlemaps/three';
-import { createScene } from '@/lib/three-utils';
+import { createScene, createMarkerCube, createRouteLine } from '@/lib/three-utils';
 
 interface RoutePath {
   lat: number;
@@ -115,7 +115,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       }
       if (sceneRef.current) {
         sceneRef.current.traverse((object) => {
-          if (object instanceof THREE.Mesh) {
+          if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
             object.geometry.dispose();
             if (object.material instanceof THREE.Material) {
               object.material.dispose();
@@ -137,7 +137,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     // Clear previous route visualization
     sceneRef.current.children.forEach(child => {
       if (child.userData.isRoute) {
-        if (child instanceof THREE.Mesh) {
+        if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
           child.geometry.dispose();
           if (child.material instanceof THREE.Material) {
             child.material.dispose();
@@ -148,51 +148,37 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     });
 
     if (routePath.length > 1) {
-      // Create route visualization
-      const points = routePath.map((point) => {
+      // Create departure marker (green)
+      const departureMarker = createMarkerCube(0x00ff00);
+      departureMarker.position.set(0, 20, 0);
+      departureMarker.userData.isRoute = true;
+      sceneRef.current.add(departureMarker);
+
+      // Create arrival marker (red)
+      const arrivalMarker = createMarkerCube(0xff0000);
+      const lastPoint = routePath[routePath.length - 1];
+      const deltaLng = lastPoint.lng - routePath[0].lng;
+      const deltaLat = lastPoint.lat - routePath[0].lat;
+      arrivalMarker.position.set(deltaLng * 111000, 20, deltaLat * 111000);
+      arrivalMarker.userData.isRoute = true;
+      sceneRef.current.add(arrivalMarker);
+
+      // Create route line points
+      const points = routePath.map((point, index) => {
+        const deltaLng = point.lng - routePath[0].lng;
+        const deltaLat = point.lat - routePath[0].lat;
+        // Scale the coordinates (roughly 111km per degree)
         return new THREE.Vector3(
-          point.lng - routePath[0].lng,
-          50, // Height above ground
-          point.lat - routePath[0].lat
+          deltaLng * 111000,
+          20 + Math.sin(index * 0.2) * 10, // Add wave pattern
+          deltaLat * 111000
         );
       });
 
-      // Create route line
-      const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMaterial = new THREE.LineBasicMaterial({
-        color: 0x00ff00,
-        linewidth: 3,
-        transparent: true,
-        opacity: 0.8,
-      });
-
-      const routeLine = new THREE.Line(lineGeometry, lineMaterial);
+      // Create and add route line
+      const routeLine = createRouteLine(points);
       routeLine.userData.isRoute = true;
       sceneRef.current.add(routeLine);
-
-      // Add markers at start and end points
-      const markerGeometry = new THREE.SphereGeometry(5, 32, 32);
-      const startMaterial = new THREE.MeshPhongMaterial({
-        color: 0x00ff00,
-        transparent: true,
-        opacity: 0.8,
-      });
-      const endMaterial = new THREE.MeshPhongMaterial({
-        color: 0xff0000,
-        transparent: true,
-        opacity: 0.8,
-      });
-
-      const startMarker = new THREE.Mesh(markerGeometry, startMaterial);
-      startMarker.position.set(0, 50, 0);
-      startMarker.userData.isRoute = true;
-      sceneRef.current.add(startMarker);
-
-      const endMarker = new THREE.Mesh(markerGeometry, endMaterial);
-      const lastPoint = points[points.length - 1];
-      endMarker.position.set(lastPoint.x, 50, lastPoint.z);
-      endMarker.userData.isRoute = true;
-      sceneRef.current.add(endMarker);
     }
 
     // Request a redraw
