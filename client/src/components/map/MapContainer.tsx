@@ -13,6 +13,7 @@ export function MapContainer() {
   const mapRef = useRef<google.maps.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [isLoadingScript, setIsLoadingScript] = useState(true);
   const [routePath, setRoutePath] = useState<RoutePath[]>([]);
   const { toast } = useToast();
 
@@ -28,6 +29,7 @@ export function MapContainer() {
         destination: arrival,
         travelMode: google.maps.TravelMode.DRIVING,
         optimizeWaypoints: true,
+        region: 'HK' // Specify Hong Kong region
       });
 
       const route = result.routes[0];
@@ -39,10 +41,15 @@ export function MapContainer() {
 
         setRoutePath(path);
 
-        // Fit map bounds to show the entire route
+        // Fit map bounds to show the entire route with padding
         const bounds = new google.maps.LatLngBounds();
         path.forEach(point => bounds.extend(point));
-        mapRef.current?.fitBounds(bounds);
+        mapRef.current?.fitBounds(bounds, {
+          top: 50,
+          right: 50,
+          bottom: 50,
+          left: 50
+        });
 
         console.log('Route calculated:', path);
       }
@@ -70,13 +77,28 @@ export function MapContainer() {
       }
 
       try {
+        // Load the Google Maps script asynchronously
         await new Promise<void>((resolve, reject) => {
+          if (window.google?.maps) {
+            setIsLoadingScript(false);
+            resolve();
+            return;
+          }
+
           const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,routes&v=weekly`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap&loading=async&region=HK`;
           script.async = true;
           script.defer = true;
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('Failed to load Google Maps'));
+
+          window.initMap = () => {
+            setIsLoadingScript(false);
+            resolve();
+          };
+
+          script.onerror = () => {
+            reject(new Error('Failed to load Google Maps'));
+          };
+
           document.head.appendChild(script);
         });
 
@@ -86,8 +108,8 @@ export function MapContainer() {
 
         // Initialize map with vector rendering
         const map = new Map(containerRef.current, {
-          center: { lat: 22.3035, lng: 114.1599 },
-          zoom: 19,
+          center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
+          zoom: 15,
           tilt: 45,
           heading: 0,
           mapId: "8e0a97af9386fef",
@@ -116,6 +138,14 @@ export function MapContainer() {
     loadGoogleMaps();
   }, [toast]);
 
+  if (isLoadingScript) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <Loader />
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="absolute inset-0" />
@@ -125,12 +155,14 @@ export function MapContainer() {
         </div>
       )}
       {mapRef.current && mapLoaded && (
-        <ThreeJsOverlay 
-          map={mapRef.current} 
-          routePath={routePath}
-        />
+        <>
+          <ThreeJsOverlay 
+            map={mapRef.current} 
+            routePath={routePath}
+          />
+          <RouteInputs onRouteChange={handleRouteChange} />
+        </>
       )}
-      <RouteInputs onRouteChange={handleRouteChange} />
     </div>
   );
 }

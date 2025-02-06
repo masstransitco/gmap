@@ -29,6 +29,7 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
     // Initialize Google Places Autocomplete
     const initializeAutocomplete = async () => {
       try {
+        // Wait for Places library to be loaded
         const { Autocomplete } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
 
         // Configure autocomplete for departure
@@ -122,11 +123,11 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
   };
 
   return (
-    <Card className="absolute top-6 left-6 w-96 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <Card className="absolute top-6 left-6 w-96 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-10">
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <div className="flex items-center space-x-2">
+            <div className="relative flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-primary" />
               <Input
                 ref={departureRef}
@@ -136,7 +137,7 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
                 className="flex-1"
               />
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="relative flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-destructive" />
               <Input
                 ref={arrivalRef}
@@ -156,6 +157,31 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
           </Button>
         </form>
       </CardContent>
+      <style>{`
+        .pac-container {
+          z-index: 1000;
+          border-radius: 0.5rem;
+          margin-top: 4px;
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+          background-color: white;
+          border: 1px solid #e2e8f0;
+        }
+        .pac-item {
+          padding: 8px 12px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .pac-item:hover {
+          background-color: #f7fafc;
+        }
+        .pac-item-query {
+          font-size: 14px;
+          padding-right: 4px;
+        }
+        .pac-matched {
+          font-weight: bold;
+        }
+      `}</style>
     </Card>
   );
 }
