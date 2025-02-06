@@ -24,8 +24,18 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     const webglOverlayView = new google.maps.WebGLOverlayView();
 
     webglOverlayView.onAdd = () => {
-      sceneRef.current = createScene();
+      sceneRef.current = new THREE.Scene();
       cameraRef.current = new THREE.PerspectiveCamera();
+
+      // Add ambient light
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+      sceneRef.current.add(ambientLight);
+
+      // Add directional light
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
+      directionalLight.position.set(0.5, -1, 0.5);
+      sceneRef.current.add(directionalLight);
+
       console.log('Scene and camera initialized');
     };
 
@@ -36,7 +46,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         ...gl.getContextAttributes(),
       });
       rendererRef.current.autoClear = false;
-      console.log('WebGL context restored and renderer initialized');
+      console.log('WebGL context restored');
     };
 
     webglOverlayView.onDraw = ({ gl, transformer }) => {
@@ -45,60 +55,56 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         return;
       }
 
-      // Clear existing markers from the scene
-      const existingMarkers = sceneRef.current.children.filter(child => child.userData.isRoute);
-      existingMarkers.forEach(marker => sceneRef.current!.remove(marker));
+      // Clear any existing markers
+      const markers = sceneRef.current.children.filter(
+        child => child instanceof THREE.Mesh
+      );
+      markers.forEach(marker => sceneRef.current!.remove(marker));
 
       if (routePath.length > 1) {
         try {
-          // Create and position departure marker (green)
+          // Create departure marker (green cube)
           const departureMarker = createMarkerCube(0x00ff00);
-          departureMarker.userData.isRoute = true;
-
-          const startMatrix = transformer.fromLatLngAltitude({
+          const departureMatrix = transformer.fromLatLngAltitude({
             lat: routePath[0].lat,
             lng: routePath[0].lng,
-            altitude: 120
+            altitude: 50
           });
-          departureMarker.matrix.fromArray(startMatrix);
+          departureMarker.matrix.fromArray(departureMatrix);
           departureMarker.matrixAutoUpdate = false;
           sceneRef.current.add(departureMarker);
           console.log('Added departure marker');
 
-          // Create and position arrival marker (red)
+          // Create arrival marker (red cube)
           const arrivalMarker = createMarkerCube(0xff0000);
-          arrivalMarker.userData.isRoute = true;
-
-          const endMatrix = transformer.fromLatLngAltitude({
+          const arrivalMatrix = transformer.fromLatLngAltitude({
             lat: routePath[routePath.length - 1].lat,
             lng: routePath[routePath.length - 1].lng,
-            altitude: 120
+            altitude: 50
           });
-          arrivalMarker.matrix.fromArray(endMatrix);
+          arrivalMarker.matrix.fromArray(arrivalMatrix);
           arrivalMarker.matrixAutoUpdate = false;
           sceneRef.current.add(arrivalMarker);
           console.log('Added arrival marker');
         } catch (error) {
-          console.error('Error placing markers:', error);
+          console.error('Error creating markers:', error);
         }
       }
 
-      // Update camera matrix for proper projection
+      // Update camera matrix
       const matrix = transformer.fromLatLngAltitude({
         lat: map.getCenter()?.lat() || 0,
         lng: map.getCenter()?.lng() || 0,
         altitude: 120
       });
+      cameraRef.current.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
 
-      cameraRef.current.projectionMatrix.fromArray(matrix);
-
-      // Request a redraw and render
+      // Render and reset
       webglOverlayView.requestRedraw();
       rendererRef.current.render(sceneRef.current, cameraRef.current);
       rendererRef.current.resetState();
     };
 
-    // Set the overlay on the map
     webglOverlayView.setMap(map);
 
     return () => {
