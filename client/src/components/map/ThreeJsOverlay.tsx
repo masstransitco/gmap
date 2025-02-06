@@ -61,12 +61,13 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
           const departureMarker = createMarkerCube(0x00ff00);
           departureMarker.userData.isRoute = true;
 
-          const startMatrix = transformer.fromLatLngAltitude({
+          const startLatLng = {
             lat: routePath[0].lat,
             lng: routePath[0].lng,
             altitude: 100
-          });
+          };
 
+          const startMatrix = transformer.fromLatLngAltitude(startLatLng);
           departureMarker.applyMatrix4(new THREE.Matrix4().fromArray(startMatrix));
           sceneRef.current.add(departureMarker);
           console.log('Added departure marker');
@@ -75,12 +76,13 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
           const arrivalMarker = createMarkerCube(0xff0000);
           arrivalMarker.userData.isRoute = true;
 
-          const endMatrix = transformer.fromLatLngAltitude({
+          const endLatLng = {
             lat: routePath[routePath.length - 1].lat,
             lng: routePath[routePath.length - 1].lng,
             altitude: 100
-          });
+          };
 
+          const endMatrix = transformer.fromLatLngAltitude(endLatLng);
           arrivalMarker.applyMatrix4(new THREE.Matrix4().fromArray(endMatrix));
           sceneRef.current.add(arrivalMarker);
           console.log('Added arrival marker');
