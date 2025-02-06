@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { createMarkerCube } from '@/lib/three-utils';
+import { createMarkerCube, createRouteLine, createScene } from '@/lib/three-utils';
 
 interface RoutePath {
   lat: number;
@@ -22,38 +22,21 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     console.log('Initializing Three.js overlay...');
 
-    // Create WebGL overlay
     const webglOverlayView = new google.maps.WebGLOverlayView();
 
     webglOverlayView.onAdd = () => {
-      // Initialize scene
-      const scene = new THREE.Scene();
-
-      // Add lighting
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
-      scene.add(ambientLight);
-
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
-      directionalLight.position.set(0.5, -1, 0.5);
-      scene.add(directionalLight);
-
-      // Initialize camera
-      const camera = new THREE.PerspectiveCamera();
-
-      sceneRef.current = scene;
-      cameraRef.current = camera;
-
+      sceneRef.current = createScene();
+      cameraRef.current = new THREE.PerspectiveCamera();
       console.log('Scene and camera initialized');
     };
 
     webglOverlayView.onContextRestored = ({ gl }) => {
-      const renderer = new THREE.WebGLRenderer({
+      rendererRef.current = new THREE.WebGLRenderer({
         canvas: gl.canvas,
         context: gl,
         ...gl.getContextAttributes(),
       });
-      renderer.autoClear = false;
-      rendererRef.current = renderer;
+      rendererRef.current.autoClear = false;
       console.log('WebGL context restored');
     };
 
@@ -63,15 +46,29 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         return;
       }
 
-      // Clear existing route markers
-      const markers = sceneRef.current.children.filter(
-        child => child instanceof THREE.Mesh
-      );
-      markers.forEach(marker => sceneRef.current!.remove(marker));
+      // Clear existing objects
+      while (sceneRef.current.children.length > 0) {
+        sceneRef.current.remove(sceneRef.current.children[0]);
+      }
 
-      // Add new markers if we have a route
       if (routePath.length > 1) {
         try {
+          // Create route line points
+          const points = routePath.map(point => {
+            const matrix = transformer.fromLatLngAltitude({
+              lat: point.lat,
+              lng: point.lng,
+              altitude: 20
+            });
+            const vector = new THREE.Vector3();
+            vector.setFromMatrixPosition(new THREE.Matrix4().fromArray(matrix));
+            return vector;
+          });
+
+          // Add route line
+          const routeLine = createRouteLine(points);
+          sceneRef.current.add(routeLine);
+
           // Create and position departure marker (green)
           const departureMarker = createMarkerCube(0x00ff00);
           const departureMatrix = transformer.fromLatLngAltitude({
@@ -94,7 +91,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
           arrivalMarker.matrixAutoUpdate = false;
           sceneRef.current.add(arrivalMarker);
         } catch (error) {
-          console.error('Error creating markers:', error);
+          console.error('Error creating route visualization:', error);
         }
       }
 
@@ -109,12 +106,11 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         cameraRef.current.projectionMatrix.fromArray(matrix);
       }
 
-      // Render scene
+      // Render and reset
       rendererRef.current.render(sceneRef.current, cameraRef.current);
       rendererRef.current.resetState();
     };
 
-    // Set up the overlay
     webglOverlayView.setMap(map);
 
     return () => {

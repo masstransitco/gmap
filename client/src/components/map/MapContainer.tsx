@@ -12,7 +12,6 @@ interface RoutePath {
 export function MapContainer() {
   const mapRef = useRef<google.maps.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const polylineRef = useRef<google.maps.Polyline | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isLoadingScript, setIsLoadingScript] = useState(true);
   const [routePath, setRoutePath] = useState<RoutePath[]>([]);
@@ -41,22 +40,6 @@ export function MapContainer() {
         }));
 
         setRoutePath(path);
-
-        // Update polyline
-        if (polylineRef.current) {
-          polylineRef.current.setMap(null);
-        }
-
-        const polyline = new google.maps.Polyline({
-          path: path,
-          geodesic: true,
-          strokeColor: "#0088FF",
-          strokeOpacity: 0.8,
-          strokeWeight: 3
-        });
-
-        polyline.setMap(mapRef.current);
-        polylineRef.current = polyline;
 
         // Fit bounds
         const bounds = new google.maps.LatLngBounds();
@@ -167,9 +150,6 @@ export function MapContainer() {
 
     return () => {
       isMounted = false;
-      if (polylineRef.current) {
-        polylineRef.current.setMap(null);
-      }
     };
   }, [toast]);
 
