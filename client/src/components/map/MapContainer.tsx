@@ -11,8 +11,8 @@ interface RoutePath {
 
 export function MapContainer() {
   const mapRef = useRef<google.maps.Map | null>(null);
-  const polylineRef = useRef<google.maps.Polyline | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const polylineRef = useRef<google.maps.Polyline | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isLoadingScript, setIsLoadingScript] = useState(true);
   const [routePath, setRoutePath] = useState<RoutePath[]>([]);
@@ -42,16 +42,15 @@ export function MapContainer() {
 
         setRoutePath(path);
 
-        // Clear existing polyline
+        // Update polyline
         if (polylineRef.current) {
           polylineRef.current.setMap(null);
         }
 
-        // Create new polyline for the route
         const polyline = new google.maps.Polyline({
           path: path,
           geodesic: true,
-          strokeColor: '#0088FF',
+          strokeColor: "#0088FF",
           strokeOpacity: 0.8,
           strokeWeight: 3
         });
@@ -59,10 +58,10 @@ export function MapContainer() {
         polyline.setMap(mapRef.current);
         polylineRef.current = polyline;
 
-        // Fit map bounds to show the entire route with padding
+        // Fit bounds
         const bounds = new google.maps.LatLngBounds();
         path.forEach(point => bounds.extend(point));
-        mapRef.current?.fitBounds(bounds, {
+        mapRef.current.fitBounds(bounds, {
           top: 50,
           right: 50,
           bottom: 50,
@@ -105,7 +104,7 @@ export function MapContainer() {
           }
 
           const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=beta`;
           script.defer = true;
 
           script.onload = () => {
@@ -124,31 +123,26 @@ export function MapContainer() {
           document.head.appendChild(script);
         });
 
-        while (isMounted && !containerRef.current) {
-          console.log('Waiting for map container...');
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (!containerRef.current) {
+          console.error('Map container not found');
+          return;
         }
 
-        if (!isMounted) return;
-
-        console.log('Map container found, initializing map...');
-
-        const mapOptions = {
-          center: { lat: 22.3035, lng: 114.1599 },
+        console.log('Initializing map...');
+        const map = new google.maps.Map(containerRef.current, {
+          center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
           zoom: 15,
-          tilt: 0,
+          tilt: 45,
           heading: 0,
-          mapId: "15431d2b469f209e",
+          mapId: "8e0a97af9386fef", // Updated Vector map ID
           disableDefaultUI: false,
-          mapTypeId: 'roadmap',
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
           backgroundColor: 'transparent',
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: true,
-          rotateControl: true,
-        };
-
-        const map = new google.maps.Map(containerRef.current!, mapOptions);
+          rotateControl: true
+        });
 
         if (isMounted) {
           mapRef.current = map;

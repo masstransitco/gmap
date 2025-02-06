@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { createMarkerCube, createScene } from '@/lib/three-utils';
+import { createMarkerCube } from '@/lib/three-utils';
 
 interface RoutePath {
   lat: number;
@@ -21,31 +21,39 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     if (!map) return;
 
     console.log('Initializing Three.js overlay...');
+
+    // Create WebGL overlay
     const webglOverlayView = new google.maps.WebGLOverlayView();
 
     webglOverlayView.onAdd = () => {
-      sceneRef.current = new THREE.Scene();
-      cameraRef.current = new THREE.PerspectiveCamera();
+      // Initialize scene
+      const scene = new THREE.Scene();
 
-      // Add ambient light
+      // Add lighting
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
-      sceneRef.current.add(ambientLight);
+      scene.add(ambientLight);
 
-      // Add directional light
       const directionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
       directionalLight.position.set(0.5, -1, 0.5);
-      sceneRef.current.add(directionalLight);
+      scene.add(directionalLight);
+
+      // Initialize camera
+      const camera = new THREE.PerspectiveCamera();
+
+      sceneRef.current = scene;
+      cameraRef.current = camera;
 
       console.log('Scene and camera initialized');
     };
 
     webglOverlayView.onContextRestored = ({ gl }) => {
-      rendererRef.current = new THREE.WebGLRenderer({
+      const renderer = new THREE.WebGLRenderer({
         canvas: gl.canvas,
         context: gl,
         ...gl.getContextAttributes(),
       });
-      rendererRef.current.autoClear = false;
+      renderer.autoClear = false;
+      rendererRef.current = renderer;
       console.log('WebGL context restored');
     };
 
@@ -55,15 +63,16 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         return;
       }
 
-      // Clear any existing markers
+      // Clear existing route markers
       const markers = sceneRef.current.children.filter(
         child => child instanceof THREE.Mesh
       );
       markers.forEach(marker => sceneRef.current!.remove(marker));
 
+      // Add new markers if we have a route
       if (routePath.length > 1) {
         try {
-          // Create departure marker (green cube)
+          // Create and position departure marker (green)
           const departureMarker = createMarkerCube(0x00ff00);
           const departureMatrix = transformer.fromLatLngAltitude({
             lat: routePath[0].lat,
@@ -73,9 +82,8 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
           departureMarker.matrix.fromArray(departureMatrix);
           departureMarker.matrixAutoUpdate = false;
           sceneRef.current.add(departureMarker);
-          console.log('Added departure marker');
 
-          // Create arrival marker (red cube)
+          // Create and position arrival marker (red)
           const arrivalMarker = createMarkerCube(0xff0000);
           const arrivalMatrix = transformer.fromLatLngAltitude({
             lat: routePath[routePath.length - 1].lat,
@@ -85,26 +93,28 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
           arrivalMarker.matrix.fromArray(arrivalMatrix);
           arrivalMarker.matrixAutoUpdate = false;
           sceneRef.current.add(arrivalMarker);
-          console.log('Added arrival marker');
         } catch (error) {
           console.error('Error creating markers:', error);
         }
       }
 
       // Update camera matrix
-      const matrix = transformer.fromLatLngAltitude({
-        lat: map.getCenter()?.lat() || 0,
-        lng: map.getCenter()?.lng() || 0,
-        altitude: 120
-      });
-      cameraRef.current.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
+      const mapCenter = map.getCenter();
+      if (mapCenter) {
+        const matrix = transformer.fromLatLngAltitude({
+          lat: mapCenter.lat(),
+          lng: mapCenter.lng(),
+          altitude: 120
+        });
+        cameraRef.current.projectionMatrix.fromArray(matrix);
+      }
 
-      // Render and reset
-      webglOverlayView.requestRedraw();
+      // Render scene
       rendererRef.current.render(sceneRef.current, cameraRef.current);
       rendererRef.current.resetState();
     };
 
+    // Set up the overlay
     webglOverlayView.setMap(map);
 
     return () => {
