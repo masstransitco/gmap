@@ -29,7 +29,7 @@ export function MapContainer() {
         destination: arrival,
         travelMode: google.maps.TravelMode.DRIVING,
         optimizeWaypoints: true,
-        region: 'HK' // Specify Hong Kong region
+        region: 'HK'
       });
 
       const route = result.routes[0];
@@ -50,8 +50,6 @@ export function MapContainer() {
           bottom: 50,
           left: 50
         });
-
-        console.log('Route calculated:', path);
       }
     } catch (error) {
       console.error('Error calculating route:', error);
@@ -64,21 +62,25 @@ export function MapContainer() {
   };
 
   useEffect(() => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+    if (!apiKey) {
+      toast({
+        title: "Configuration Error",
+        description: "Google Maps API key is not configured",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Load Google Maps API with proper initialization sequence
     const loadGoogleMaps = async () => {
-      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-      if (!apiKey) {
-        toast({
-          title: "Configuration Error",
-          description: "Google Maps API key is not configured",
-          variant: "destructive"
-        });
-        return;
-      }
-
       try {
+        console.log('Starting Google Maps initialization...');
+
         // Load the Google Maps script asynchronously
         await new Promise<void>((resolve, reject) => {
+          // Check if Google Maps is already loaded
           if (window.google?.maps) {
             setIsLoadingScript(false);
             resolve();
@@ -86,33 +88,37 @@ export function MapContainer() {
           }
 
           const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap&loading=async&region=HK`;
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
           script.async = true;
-          script.defer = true;
 
-          window.initMap = () => {
+          script.onload = () => {
+            console.log('Google Maps script loaded');
             setIsLoadingScript(false);
             resolve();
           };
 
-          script.onerror = () => {
+          script.onerror = (error) => {
+            console.error('Failed to load Google Maps:', error);
             reject(new Error('Failed to load Google Maps'));
           };
 
           document.head.appendChild(script);
         });
 
-        if (!containerRef.current) return;
+        console.log('Initializing map...');
 
-        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        // Initialize map only after container is ready
+        if (!containerRef.current) {
+          throw new Error('Map container not found');
+        }
 
-        // Initialize map with vector rendering
-        const map = new Map(containerRef.current, {
+        // Initialize map with correct configuration
+        const map = new google.maps.Map(containerRef.current, {
           center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
           zoom: 15,
           tilt: 45,
           heading: 0,
-          mapId: "8e0a97af9386fef",
+          mapId: "15431d2b469f209e", // Updated mapId for vector tiles
           disableDefaultUI: false,
           mapTypeId: 'roadmap',
           backgroundColor: 'transparent',
@@ -124,9 +130,11 @@ export function MapContainer() {
 
         mapRef.current = map;
         setMapLoaded(true);
+        console.log('Map initialized successfully');
 
       } catch (error) {
         console.error('Map initialization error:', error);
+        setIsLoadingScript(false);
         toast({
           title: "Error",
           description: "Failed to initialize the map",
@@ -135,7 +143,14 @@ export function MapContainer() {
       }
     };
 
-    loadGoogleMaps();
+    // Wait for component to mount before loading Google Maps
+    const timer = setTimeout(() => {
+      loadGoogleMaps();
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, [toast]);
 
   if (isLoadingScript) {
@@ -148,7 +163,11 @@ export function MapContainer() {
 
   return (
     <div className="relative w-full h-full">
-      <div ref={containerRef} className="absolute inset-0" />
+      <div 
+        ref={containerRef} 
+        className="absolute inset-0 bg-gray-100" 
+        style={{ minHeight: '400px' }}
+      />
       {!mapLoaded && (
         <div className="absolute inset-0 flex items-center justify-center">
           <Loader />
