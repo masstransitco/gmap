@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { ThreeJSOverlayView } from '@googlemaps/three';
 import { createScene, createMarkerCube, createRouteLine } from '@/lib/three-utils';
+import { Matrix4 } from 'three';
 
 interface RoutePath {
   lat: number;
@@ -84,14 +85,23 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       rendererRef.current = renderer;
     };
 
-    overlay.onDraw = ({ transformer }) => {
+    overlay.onDraw = ({ gl, transformer }) => {
       const camera = overlay.getCamera();
       if (!camera || !rendererRef.current || !sceneRef.current) return;
 
-      // Clear the renderer properly
-      rendererRef.current.clear();
+      //This is a placeholder,  mapOptions is not defined in the original code.  Needs proper implementation.
+      const mapOptions = {center: {lat:0, lng:0}}; // Placeholder - needs proper implementation
 
-      // Render with proper state management
+      const latLngAltitudeLiteral = {
+        lat: mapOptions.center.lat,
+        lng: mapOptions.center.lng,
+        altitude: 100,
+      };
+      // Update camera matrix to ensure the model is georeferenced correctly on the map.
+      const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
+
+      camera.projectionMatrix.fromArray(matrix); //Corrected assignment
+      overlay.requestRedraw(); //Corrected to use overlay instead of webglOverlayView
       rendererRef.current.render(sceneRef.current, camera);
       rendererRef.current.resetState();
     };

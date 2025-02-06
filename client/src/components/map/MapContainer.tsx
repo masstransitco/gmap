@@ -118,13 +118,13 @@ export function MapContainer() {
 
         console.log('Map container found, initializing map...');
 
-        // Initialize map with correct configuration
+        // Initialize map with correct configuration for WebGL overlay
         const map = new google.maps.Map(containerRef.current!, {
           center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
           zoom: 15,
           tilt: 45,
           heading: 0,
-          mapId: "15431d2b469f209e", // Updated mapId for vector tiles
+          mapId: "15431d2b469f209e", // Vector tiles map ID
           disableDefaultUI: false,
           mapTypeId: 'roadmap',
           backgroundColor: 'transparent',
