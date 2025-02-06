@@ -66,7 +66,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       animate();
     };
 
-    overlay.onContextRestored = ({ gl }) => {
+    overlay.onContextRestored = ({ gl }: { gl: WebGLRenderingContext }) => {
       console.log('WebGL context restored');
       if (!gl) return;
 
@@ -85,7 +85,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       rendererRef.current = renderer;
     };
 
-    overlay.onDraw = ({ gl, transformer }) => {
+    overlay.onDraw = ({ gl, transformer }: { gl: WebGLRenderingContext; transformer: any }) => {
       const camera = overlay.getCamera();
       if (!camera || !rendererRef.current || !sceneRef.current) return;
 
