@@ -20,11 +20,14 @@ export function MapContainer() {
     if (!mapRef.current) return;
 
     try {
+      console.log('Calculating route from', departure, 'to', arrival);
       const directionsService = new google.maps.DirectionsService();
+
       const result = await directionsService.route({
         origin: departure,
         destination: arrival,
         travelMode: google.maps.TravelMode.DRIVING,
+        optimizeWaypoints: true,
       });
 
       const route = result.routes[0];
@@ -47,7 +50,7 @@ export function MapContainer() {
       console.error('Error calculating route:', error);
       toast({
         title: "Route Error",
-        description: "Could not calculate route between the specified points",
+        description: "Could not calculate route between the specified points. Please try different locations.",
         variant: "destructive"
       });
     }
@@ -69,7 +72,6 @@ export function MapContainer() {
       try {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script');
-          // Include WebGL and vector specific libraries
           script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,routes&v=weekly`;
           script.async = true;
           script.defer = true;
@@ -91,17 +93,6 @@ export function MapContainer() {
           mapId: "8e0a97af9386fef",
           disableDefaultUI: false,
           mapTypeId: 'roadmap',
-          styles: [
-            {
-              featureType: "all",
-              elementType: "geometry",
-              stylers: [
-                { visibility: "simplified" },
-                { saturation: -60 },
-                { lightness: 10 }
-              ]
-            }
-          ],
           backgroundColor: 'transparent',
           streetViewControl: false,
           mapTypeControl: false,

@@ -8,43 +8,54 @@ interface RouteInputsProps {
   onRouteChange: (departure: string, arrival: string) => void;
 }
 
+interface PlaceLocation {
+  address: string;
+  location?: google.maps.LatLng;
+}
+
 export function RouteInputs({ onRouteChange }: RouteInputsProps) {
-  const [departure, setDeparture] = useState("");
-  const [arrival, setArrival] = useState("");
+  const [departure, setDeparture] = useState<PlaceLocation>({ address: "" });
+  const [arrival, setArrival] = useState<PlaceLocation>({ address: "" });
   const departureRef = useRef<HTMLInputElement>(null);
   const arrivalRef = useRef<HTMLInputElement>(null);
   const departureAutocompleteRef = useRef<google.maps.places.Autocomplete>();
   const arrivalAutocompleteRef = useRef<google.maps.places.Autocomplete>();
 
   useEffect(() => {
-    if (!departureRef.current || !arrivalRef.current) return;
+    if (!departureRef.current || !arrivalRef.current || !window.google?.maps) return;
 
     // Initialize Google Places Autocomplete
     const initializeAutocomplete = async () => {
       const { Autocomplete } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
 
       departureAutocompleteRef.current = new Autocomplete(departureRef.current!, {
-        types: ['address'],
+        types: ['establishment', 'geocode'],
         fields: ['formatted_address', 'geometry']
       });
 
       arrivalAutocompleteRef.current = new Autocomplete(arrivalRef.current!, {
-        types: ['address'],
+        types: ['establishment', 'geocode'],
         fields: ['formatted_address', 'geometry']
       });
 
       // Add listeners to update state when place is selected
       departureAutocompleteRef.current.addListener('place_changed', () => {
         const place = departureAutocompleteRef.current?.getPlace();
-        if (place?.formatted_address) {
-          setDeparture(place.formatted_address);
+        if (place?.formatted_address && place.geometry?.location) {
+          setDeparture({
+            address: place.formatted_address,
+            location: place.geometry.location
+          });
         }
       });
 
       arrivalAutocompleteRef.current.addListener('place_changed', () => {
         const place = arrivalAutocompleteRef.current?.getPlace();
-        if (place?.formatted_address) {
-          setArrival(place.formatted_address);
+        if (place?.formatted_address && place.geometry?.location) {
+          setArrival({
+            address: place.formatted_address,
+            location: place.geometry.location
+          });
         }
       });
     };
@@ -53,15 +64,22 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
 
     // Cleanup
     return () => {
-      google.maps.event.clearInstanceListeners(departureAutocompleteRef.current!);
-      google.maps.event.clearInstanceListeners(arrivalAutocompleteRef.current!);
+      if (departureAutocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(departureAutocompleteRef.current);
+      }
+      if (arrivalAutocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(arrivalAutocompleteRef.current);
+      }
     };
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (departure && arrival) {
-      onRouteChange(departure, arrival);
+    if (departure.location && arrival.location) {
+      onRouteChange(
+        `${departure.location.lat()},${departure.location.lng()}`,
+        `${arrival.location.lat()},${arrival.location.lng()}`
+      );
     }
   };
 
@@ -75,8 +93,8 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
               <Input
                 ref={departureRef}
                 placeholder="Departure point"
-                value={departure}
-                onChange={(e) => setDeparture(e.target.value)}
+                value={departure.address}
+                onChange={(e) => setDeparture({ address: e.target.value })}
                 className="flex-1"
               />
             </div>
@@ -85,13 +103,17 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
               <Input
                 ref={arrivalRef}
                 placeholder="Arrival point"
-                value={arrival}
-                onChange={(e) => setArrival(e.target.value)}
+                value={arrival.address}
+                onChange={(e) => setArrival({ address: e.target.value })}
                 className="flex-1"
               />
             </div>
           </div>
-          <Button type="submit" className="w-full">
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={!departure.location || !arrival.location}
+          >
             Calculate Route
           </Button>
         </form>

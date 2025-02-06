@@ -31,7 +31,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
-      anchor: { lat: 22.3035, lng: 114.1599 },
+      anchor: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
       three: {
         camera: {
           fov: 45,
@@ -41,15 +41,15 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         // Critical: Set WebGL context attributes for proper overlay
         contextAttributes: {
           antialias: true,
-          preserveDrawingBuffer: true,
+          preserveDrawingBuffer: false,
           alpha: true,
           stencil: true,
+          depth: true,
           powerPreference: 'high-performance',
         },
       },
     });
 
-    // Proper initialization sequence
     overlay.setMap(map);
 
     overlay.onAdd = () => {
@@ -65,28 +65,29 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       animate();
     };
 
-    // Required: Handle context restoration
     overlay.onContextRestored = ({ gl }) => {
       console.log('WebGL context restored');
+      if (!gl) return;
+
       // Create the renderer using the map's WebGL context
-      rendererRef.current = new THREE.WebGLRenderer({
+      const renderer = new THREE.WebGLRenderer({
         canvas: gl.canvas,
         context: gl,
         ...gl.getContextAttributes(),
       });
-      rendererRef.current.autoClear = false;
 
-      // Ensure materials are updated
-      if (sceneRef.current) {
-        scene.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) {
-            obj.material.needsUpdate = true;
-          }
-        });
-      }
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.autoClear = false;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      rendererRef.current = renderer;
     };
 
-    overlay.onDraw = ({ gl, transformer }) => {
+    overlay.onDraw = ({ transformer }) => {
+      const camera = overlay.getCamera();
+      if (!camera || !rendererRef.current || !sceneRef.current) return;
+
       // Update camera matrix to ensure proper georeferencing
       const latLngAltitudeLiteral = {
         lat: 22.3035,
@@ -94,24 +95,33 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         altitude: 100,
       };
       const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
-      const camera = overlay.getCamera();
       camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
 
-      // Render the scene
-      if (rendererRef.current) {
-        rendererRef.current.render(scene, camera);
-        rendererRef.current.resetState();
-      }
+      // Clear the renderer properly
+      rendererRef.current.clear();
+
+      // Render with proper state management
+      rendererRef.current.render(sceneRef.current, camera);
+      rendererRef.current.resetState();
     };
 
     overlayRef.current = overlay;
 
+    // Proper cleanup
     return () => {
       console.log('Cleaning up Three.js overlay...');
       if (overlayRef.current) {
         overlayRef.current.setMap(null);
       }
       if (sceneRef.current) {
+        sceneRef.current.traverse((object) => {
+          if (object instanceof THREE.Mesh) {
+            object.geometry.dispose();
+            if (object.material instanceof THREE.Material) {
+              object.material.dispose();
+            }
+          }
+        });
         sceneRef.current.clear();
       }
       if (rendererRef.current) {
@@ -120,71 +130,73 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     };
   }, [map]);
 
-  // Function to update route visualization
-  const updateRoute = (path: RoutePath[]) => {
-    if (!sceneRef.current) return;
+  // Update route visualization when path changes
+  useEffect(() => {
+    if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
 
-    // Clear previous route objects
+    // Clear previous route visualization
     sceneRef.current.children.forEach(child => {
       if (child.userData.isRoute) {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (child.material instanceof THREE.Material) {
+            child.material.dispose();
+          }
+        }
         sceneRef.current?.remove(child);
       }
     });
 
-    // Create white cubes for departure and arrival points
-    const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
-    const cubeMaterial = new THREE.MeshPhongMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.8,
-    });
-
-    // Add departure point cube
-    if (path.length > 0) {
-      const departureCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-      departureCube.position.set(0, 5, 0);
-      departureCube.userData.isRoute = true;
-      sceneRef.current.add(departureCube);
-    }
-
-    // Add arrival point cube
-    if (path.length > 1) {
-      const arrivalCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-      arrivalCube.position.set(
-        path[path.length - 1].lng - path[0].lng,
-        5,
-        path[path.length - 1].lat - path[0].lat
-      );
-      arrivalCube.userData.isRoute = true;
-      sceneRef.current.add(arrivalCube);
-
-      // Create route line
-      const points = path.map((point, index) => {
-        if (index === 0) return new THREE.Vector3(0, 5, 0);
+    if (routePath.length > 1) {
+      // Create route visualization
+      const points = routePath.map((point) => {
         return new THREE.Vector3(
-          point.lng - path[0].lng,
-          5,
-          point.lat - path[0].lat
+          point.lng - routePath[0].lng,
+          50, // Height above ground
+          point.lat - routePath[0].lat
         );
       });
 
+      // Create route line
       const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
       const lineMaterial = new THREE.LineBasicMaterial({
-        color: 0xffffff,
-        linewidth: 2,
+        color: 0x00ff00,
+        linewidth: 3,
+        transparent: true,
+        opacity: 0.8,
       });
 
       const routeLine = new THREE.Line(lineGeometry, lineMaterial);
       routeLine.userData.isRoute = true;
       sceneRef.current.add(routeLine);
-    }
-  };
 
-  // Update route visualization when path changes
-  useEffect(() => {
-    if (routePath.length > 0) {
-      updateRoute(routePath);
+      // Add markers at start and end points
+      const markerGeometry = new THREE.SphereGeometry(5, 32, 32);
+      const startMaterial = new THREE.MeshPhongMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const endMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.8,
+      });
+
+      const startMarker = new THREE.Mesh(markerGeometry, startMaterial);
+      startMarker.position.set(0, 50, 0);
+      startMarker.userData.isRoute = true;
+      sceneRef.current.add(startMarker);
+
+      const endMarker = new THREE.Mesh(markerGeometry, endMaterial);
+      const lastPoint = points[points.length - 1];
+      endMarker.position.set(lastPoint.x, 50, lastPoint.z);
+      endMarker.userData.isRoute = true;
+      sceneRef.current.add(endMarker);
     }
+
+    // Request a redraw
+    overlayRef.current?.requestRedraw();
   }, [routePath]);
 
   return null;
