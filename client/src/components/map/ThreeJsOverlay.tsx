@@ -89,18 +89,18 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       const camera = overlay.getCamera();
       if (!camera || !rendererRef.current || !sceneRef.current) return;
 
-      //This is a placeholder,  mapOptions is not defined in the original code.  Needs proper implementation.
-      const mapOptions = {center: {lat:0, lng:0}}; // Placeholder - needs proper implementation
+      //This section is removed because mapOptions is not used after the changes.
+      //const mapOptions = {center: {lat:0, lng:0}}; // Placeholder - needs proper implementation
 
-      const latLngAltitudeLiteral = {
-        lat: mapOptions.center.lat,
-        lng: mapOptions.center.lng,
-        altitude: 100,
-      };
+      //const latLngAltitudeLiteral = {
+      //  lat: mapOptions.center.lat,
+      //  lng: mapOptions.center.lng,
+      //  altitude: 100,
+      //};
       // Update camera matrix to ensure the model is georeferenced correctly on the map.
-      const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
+      //const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
 
-      camera.projectionMatrix.fromArray(matrix); //Corrected assignment
+      //camera.projectionMatrix = new Matrix4().fromArray(matrix); //Corrected assignment
       overlay.requestRedraw(); //Corrected to use overlay instead of webglOverlayView
       rendererRef.current.render(sceneRef.current, camera);
       rendererRef.current.resetState();
@@ -156,9 +156,9 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       // Update overlay anchor to the start point
       overlayRef.current.anchor = new google.maps.LatLng(startPoint.lat, startPoint.lng);
 
-      // Create departure marker (green)
+      // Create departure marker (green) at higher altitude
       const departureMarker = createMarkerCube(0x00ff00);
-      departureMarker.position.set(0, 20, 0);
+      departureMarker.position.set(0, 200, 0); // Increased Y position for altitude
       departureMarker.userData.isRoute = true;
       sceneRef.current.add(departureMarker);
 
@@ -170,15 +170,16 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
         return new THREE.Vector3(
           deltaLng,
-          20 + Math.sin(index * 0.2) * 10, // Add wave pattern
+          50 + Math.sin(index * 0.2) * 10, // Route elevation with wave pattern
           -deltaLat // Negative because Three.js Z is opposite to latitude
         );
       });
 
-      // Create arrival marker (red)
+      // Create arrival marker (red) at higher altitude
       const arrivalMarker = createMarkerCube(0xff0000);
       const lastPoint = points[points.length - 1];
       arrivalMarker.position.copy(lastPoint);
+      arrivalMarker.position.y = 200; // Set to same height as departure marker
       arrivalMarker.userData.isRoute = true;
       sceneRef.current.add(arrivalMarker);
 

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 export function createMarkerCube(color: number = 0x00ff00) {
   // Create a cube geometry for the marker
-  const geometry = new THREE.BoxGeometry(20, 40, 20);
+  const geometry = new THREE.BoxGeometry(30, 60, 30); // Increased size for better visibility
   const material = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
@@ -19,7 +19,7 @@ export function createMarkerCube(color: number = 0x00ff00) {
   const animate = () => {
     if (cube) {
       cube.rotation.y += 0.01;
-      cube.position.y = 20 + Math.sin(Date.now() * 0.002) * 5; // Floating animation
+      cube.position.y += Math.sin(Date.now() * 0.002) * 0.5; // Reduced floating animation range
     }
   };
 
@@ -31,15 +31,15 @@ export function createRouteLine(points: THREE.Vector3[], color: number = 0x0088f
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
     color,
-    linewidth: 3,
+    linewidth: 5, // Increased line width
     transparent: true,
     opacity: 0.8,
   });
 
   const line = new THREE.Line(geometry, material);
 
-  // Elevate the line slightly to prevent z-fighting
-  line.position.y = 2;
+  // Elevate the line to prevent z-fighting but keep it close to ground
+  line.position.y = 5;
 
   return line;
 }
