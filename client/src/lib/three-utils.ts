@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 export function createMarkerCube(color: number = 0x00ff00) {
   // Create a cube geometry for the marker
-  const geometry = new THREE.BoxGeometry(30, 60, 30); // Increased size for better visibility
+  const geometry = new THREE.BoxGeometry(20, 40, 20); // Standard size for both markers
   const material = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
@@ -19,7 +19,8 @@ export function createMarkerCube(color: number = 0x00ff00) {
   const animate = () => {
     if (cube) {
       cube.rotation.y += 0.01;
-      cube.position.y += Math.sin(Date.now() * 0.002) * 0.5; // Reduced floating animation range
+      // Small floating animation that doesn't affect the base height
+      cube.position.y += Math.sin(Date.now() * 0.002) * 0.2;
     }
   };
 

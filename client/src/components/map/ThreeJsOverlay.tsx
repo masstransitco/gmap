@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { ThreeJSOverlayView } from '@googlemaps/three';
 import { createScene, createMarkerCube, createRouteLine } from '@/lib/three-utils';
-import { Matrix4 } from 'three';
 
 interface RoutePath {
   lat: number;
@@ -23,16 +22,13 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     if (!map) return;
 
     console.log('Initializing Three.js overlay...');
-
-    // Create the scene with our 3D objects
     const scene = createScene();
     sceneRef.current = scene;
 
-    // Initialize the WebGL overlay with correct context attributes
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
-      anchor: new google.maps.LatLng(0, 0), // Will be updated with route
+      anchor: new google.maps.LatLng(0, 0),
       three: {
         camera: {
           fov: 45,
@@ -115,13 +111,12 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     };
   }, [map]);
 
-  // Update route visualization when path changes
   useEffect(() => {
     if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
 
     console.log('Updating route visualization with path:', routePath);
 
-    // Clear previous route visualization
+    // Clear previous route objects
     sceneRef.current.children.forEach(child => {
       if (child.userData.isRoute) {
         if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
@@ -135,46 +130,43 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     });
 
     if (routePath.length > 1) {
-      const startPoint = routePath[0];
+      const MARKER_HEIGHT = 100; // Consistent height for both markers
 
-      // Update overlay anchor to the start point
-      overlayRef.current.anchor = new google.maps.LatLng(startPoint.lat, startPoint.lng);
-
-      // Create points for the route, relative to start point
-      const points = routePath.map((point) => {
-        // Convert lat/lng differences to approximate meters
-        const deltaLng = (point.lng - startPoint.lng) * 111000 * Math.cos(startPoint.lat * Math.PI / 180);
-        const deltaLat = (point.lat - startPoint.lat) * 111000;
-
-        return new THREE.Vector3(
-          deltaLng,
-          0, // Keep route at ground level
-          -deltaLat // Negative because Three.js Z is opposite to latitude
-        );
+      // Convert all route points to world coordinates using Google Maps projection
+      const worldPoints = routePath.map(point => {
+        const matrix = overlayRef.current!.getProjection().fromLatLngAltitude({
+          lat: point.lat,
+          lng: point.lng,
+          altitude: 0
+        });
+        return { 
+          position: new THREE.Vector3(matrix[12], 0, matrix[14]),
+          original: point 
+        };
       });
 
-      // Create departure marker (green) at higher altitude
+      // Create and position the departure marker (green)
+      const startPoint = worldPoints[0].position.clone();
       const departureMarker = createMarkerCube(0x00ff00);
-      departureMarker.position.set(0, 200, 0); // Same height as arrival marker
+      departureMarker.position.copy(startPoint);
+      departureMarker.position.y = MARKER_HEIGHT; // Set exact height
       departureMarker.userData.isRoute = true;
       sceneRef.current.add(departureMarker);
 
-      // Create arrival marker (red) at higher altitude
+      // Create and position the arrival marker (red)
+      const endPoint = worldPoints[worldPoints.length - 1].position.clone();
       const arrivalMarker = createMarkerCube(0xff0000);
-      const lastPoint = points[points.length - 1];
-      arrivalMarker.position.copy(lastPoint);
-      arrivalMarker.position.y = 200; // Same height as departure marker
+      arrivalMarker.position.copy(endPoint);
+      arrivalMarker.position.y = MARKER_HEIGHT; // Same exact height as departure
       arrivalMarker.userData.isRoute = true;
       sceneRef.current.add(arrivalMarker);
 
-      // Create and add route line
-      const routeLine = createRouteLine(points);
+      // Create the route line using all path points
+      const routeLine = createRouteLine(worldPoints.map(p => p.position));
       routeLine.userData.isRoute = true;
       sceneRef.current.add(routeLine);
 
-      // Request a redraw with the updated scene
       overlayRef.current.requestRedraw();
-
       console.log('Route visualization updated');
     }
   }, [routePath]);
