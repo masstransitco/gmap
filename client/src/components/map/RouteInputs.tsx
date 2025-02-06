@@ -20,7 +20,7 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
   };
 
   return (
-    <Card className="absolute top-4 left-4 w-80 bg-background/95 backdrop-blur">
+    <Card className="absolute top-6 left-6 w-96 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <CardContent className="p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
