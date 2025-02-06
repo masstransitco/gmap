@@ -10,7 +10,7 @@ interface ThreeJsOverlayProps {
 export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
   const overlayRef = useRef<ThreeJSOverlayView>();
   const sceneRef = useRef<THREE.Scene>();
-  const animationFrameRef = useRef<number>();
+  const rendererRef = useRef<THREE.WebGLRenderer>();
 
   useEffect(() => {
     if (!map) return;
@@ -46,30 +46,55 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
     // Proper initialization sequence
     overlay.setMap(map);
 
-    // Handle WebGL context events
     overlay.onAdd = () => {
       console.log('Three.js overlay added to map');
-
       // Begin render loop only after context is ready
       const animate = () => {
         if (sceneRef.current?.userData.update) {
           sceneRef.current.userData.update();
         }
         overlay.requestRedraw();
-        animationFrameRef.current = requestAnimationFrame(animate);
+        requestAnimationFrame(animate);
       };
       animate();
     };
 
     // Required: Handle context restoration
-    overlay.onContextRestored = () => {
+    overlay.onContextRestored = ({ gl }) => {
       console.log('WebGL context restored');
+      // Create the renderer using the map's WebGL context
+      rendererRef.current = new THREE.WebGLRenderer({
+        canvas: gl.canvas,
+        context: gl,
+        ...gl.getContextAttributes(),
+      });
+      rendererRef.current.autoClear = false;
+
+      // Ensure materials are updated
       if (sceneRef.current) {
         scene.traverse((obj) => {
           if (obj instanceof THREE.Mesh) {
             obj.material.needsUpdate = true;
           }
         });
+      }
+    };
+
+    overlay.onDraw = ({ gl, transformer }) => {
+      // Update camera matrix to ensure proper georeferencing
+      const latLngAltitudeLiteral = {
+        lat: 22.3035,
+        lng: 114.1599,
+        altitude: 100,
+      };
+      const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
+      const camera = overlay.getCamera();
+      camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
+
+      // Render the scene
+      if (rendererRef.current) {
+        rendererRef.current.render(scene, camera);
+        rendererRef.current.resetState();
       }
     };
 
@@ -83,8 +108,8 @@ export function ThreeJsOverlay({ map }: ThreeJsOverlayProps) {
       if (sceneRef.current) {
         sceneRef.current.clear();
       }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
       }
     };
   }, [map]);
