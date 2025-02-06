@@ -39,7 +39,6 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
           near: 1,
           far: 2000,
         },
-        // Critical: Set WebGL context attributes for proper overlay
         contextAttributes: {
           antialias: true,
           preserveDrawingBuffer: false,
@@ -55,7 +54,6 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     overlay.onAdd = () => {
       console.log('Three.js overlay added to map');
-      // Begin render loop only after context is ready
       const animate = () => {
         if (sceneRef.current?.userData.update) {
           sceneRef.current.userData.update();
@@ -70,7 +68,6 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       console.log('WebGL context restored');
       if (!gl) return;
 
-      // Create the renderer using the map's WebGL context
       const renderer = new THREE.WebGLRenderer({
         canvas: gl.canvas,
         context: gl,
@@ -89,26 +86,13 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       const camera = overlay.getCamera();
       if (!camera || !rendererRef.current || !sceneRef.current) return;
 
-      //This section is removed because mapOptions is not used after the changes.
-      //const mapOptions = {center: {lat:0, lng:0}}; // Placeholder - needs proper implementation
-
-      //const latLngAltitudeLiteral = {
-      //  lat: mapOptions.center.lat,
-      //  lng: mapOptions.center.lng,
-      //  altitude: 100,
-      //};
-      // Update camera matrix to ensure the model is georeferenced correctly on the map.
-      //const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
-
-      //camera.projectionMatrix = new Matrix4().fromArray(matrix); //Corrected assignment
-      overlay.requestRedraw(); //Corrected to use overlay instead of webglOverlayView
+      overlay.requestRedraw();
       rendererRef.current.render(sceneRef.current, camera);
       rendererRef.current.resetState();
     };
 
     overlayRef.current = overlay;
 
-    // Proper cleanup
     return () => {
       console.log('Cleaning up Three.js overlay...');
       if (overlayRef.current) {
@@ -156,30 +140,30 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       // Update overlay anchor to the start point
       overlayRef.current.anchor = new google.maps.LatLng(startPoint.lat, startPoint.lng);
 
-      // Create departure marker (green) at higher altitude
-      const departureMarker = createMarkerCube(0x00ff00);
-      departureMarker.position.set(0, 200, 0); // Increased Y position for altitude
-      departureMarker.userData.isRoute = true;
-      sceneRef.current.add(departureMarker);
-
       // Create points for the route, relative to start point
-      const points = routePath.map((point, index) => {
+      const points = routePath.map((point) => {
         // Convert lat/lng differences to approximate meters
         const deltaLng = (point.lng - startPoint.lng) * 111000 * Math.cos(startPoint.lat * Math.PI / 180);
         const deltaLat = (point.lat - startPoint.lat) * 111000;
 
         return new THREE.Vector3(
           deltaLng,
-          50 + Math.sin(index * 0.2) * 10, // Route elevation with wave pattern
+          0, // Keep route at ground level
           -deltaLat // Negative because Three.js Z is opposite to latitude
         );
       });
+
+      // Create departure marker (green) at higher altitude
+      const departureMarker = createMarkerCube(0x00ff00);
+      departureMarker.position.set(0, 200, 0); // Same height as arrival marker
+      departureMarker.userData.isRoute = true;
+      sceneRef.current.add(departureMarker);
 
       // Create arrival marker (red) at higher altitude
       const arrivalMarker = createMarkerCube(0xff0000);
       const lastPoint = points[points.length - 1];
       arrivalMarker.position.copy(lastPoint);
-      arrivalMarker.position.y = 200; // Set to same height as departure marker
+      arrivalMarker.position.y = 200; // Same height as departure marker
       arrivalMarker.userData.isRoute = true;
       sceneRef.current.add(arrivalMarker);
 

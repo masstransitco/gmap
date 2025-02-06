@@ -31,15 +31,15 @@ export function createRouteLine(points: THREE.Vector3[], color: number = 0x0088f
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
     color,
-    linewidth: 5, // Increased line width
+    linewidth: 3,
     transparent: true,
     opacity: 0.8,
   });
 
   const line = new THREE.Line(geometry, material);
 
-  // Elevate the line to prevent z-fighting but keep it close to ground
-  line.position.y = 5;
+  // Keep the line exactly at ground level
+  line.position.y = 0;
 
   return line;
 }
