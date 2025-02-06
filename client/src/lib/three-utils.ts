@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 export function createMarkerCube(color: number = 0x00ff00) {
   // Create a cube geometry for the marker
-  const geometry = new THREE.BoxGeometry(30, 60, 30); // Increased size for better visibility
+  const geometry = new THREE.BoxGeometry(5, 10, 5); // Smaller size to match map scale
   const material = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
@@ -14,12 +14,13 @@ export function createMarkerCube(color: number = 0x00ff00) {
   });
 
   const cube = new THREE.Mesh(geometry, material);
+  cube.castShadow = true;
+  cube.receiveShadow = true;
 
   // Add animation
   const animate = () => {
     if (cube) {
-      cube.rotation.y += 0.01;
-      cube.position.y += Math.sin(Date.now() * 0.002) * 0.5; // Reduced floating animation range
+      cube.rotation.y += 0.02;
     }
   };
 
@@ -28,19 +29,19 @@ export function createMarkerCube(color: number = 0x00ff00) {
 }
 
 export function createRouteLine(points: THREE.Vector3[], color: number = 0x0088ff) {
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  // Create a smooth curve through the points
+  const curve = new THREE.CatmullRomCurve3(points);
+  const curvePoints = curve.getPoints(50 * points.length); // More points for smoother curve
+
+  const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
   const material = new THREE.LineBasicMaterial({
     color,
-    linewidth: 5, // Increased line width
+    linewidth: 2,
     transparent: true,
     opacity: 0.8,
   });
 
   const line = new THREE.Line(geometry, material);
-
-  // Elevate the line to prevent z-fighting but keep it close to ground
-  line.position.y = 5;
-
   return line;
 }
 
@@ -54,6 +55,7 @@ export function createScene() {
   // Add directional light for shadows and depth
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
   directionalLight.position.set(0.5, 1, 0.5);
+  directionalLight.castShadow = true;
   scene.add(directionalLight);
 
   // Add update method to the scene for animation
