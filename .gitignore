@@ -1,6 +1,46 @@
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+
+# Production
 dist
-.DS_Store
+build
 server/public
+
+# Misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Vite
 vite.config.ts.*
+*.timestamp-*
+
+# TypeScript
+*.tsbuildinfo
+
+# Temp files
+*.log
 *.tar.gz
