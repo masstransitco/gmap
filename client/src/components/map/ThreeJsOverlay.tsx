@@ -17,6 +17,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
   const overlayRef = useRef<ThreeJSOverlayView>();
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
+  const projectionRef = useRef<google.maps.Projection>();
 
   useEffect(() => {
     if (!map) return;
@@ -50,6 +51,9 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     overlay.onAdd = () => {
       console.log('Three.js overlay added to map');
+      // Store the projection for later use
+      projectionRef.current = overlay.getMap().getProjection();
+
       const animate = () => {
         if (sceneRef.current?.userData.update) {
           sceneRef.current.userData.update();
@@ -112,7 +116,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
   }, [map]);
 
   useEffect(() => {
-    if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
+    if (!sceneRef.current || !overlayRef.current || !projectionRef.current || routePath.length === 0) return;
 
     console.log('Updating route visualization with path:', routePath);
 
@@ -132,16 +136,13 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     if (routePath.length > 1) {
       const MARKER_HEIGHT = 100; // Consistent height for both markers
 
-      // Convert all route points to world coordinates using Google Maps projection
+      // Convert all route points to world coordinates using the stored projection
       const worldPoints = routePath.map(point => {
-        const matrix = overlayRef.current!.getProjection().fromLatLngAltitude({
-          lat: point.lat,
-          lng: point.lng,
-          altitude: 0
-        });
-        return { 
-          position: new THREE.Vector3(matrix[12], 0, matrix[14]),
-          original: point 
+        const latLng = new google.maps.LatLng(point.lat, point.lng);
+        const worldPoint = overlayRef.current!.latLngAltitudeToVector3(latLng, 0);
+        return {
+          position: worldPoint,
+          original: point
         };
       });
 
