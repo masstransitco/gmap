@@ -21,20 +21,15 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     if (!map) return;
 
     console.log('Initializing Three.js overlay...');
-
     const webglOverlayView = new google.maps.WebGLOverlayView();
 
     webglOverlayView.onAdd = () => {
-      // Set up the scene
       sceneRef.current = createScene();
-
-      // Set up the camera
       cameraRef.current = new THREE.PerspectiveCamera();
       console.log('Scene and camera initialized');
     };
 
     webglOverlayView.onContextRestored = ({ gl }) => {
-      // Create the Three.js renderer using the WebGL context from the map
       rendererRef.current = new THREE.WebGLRenderer({
         canvas: gl.canvas,
         context: gl,
@@ -46,44 +41,41 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     webglOverlayView.onDraw = ({ gl, transformer }) => {
       if (!sceneRef.current || !rendererRef.current || !cameraRef.current) {
-        console.log('Missing required refs in onDraw');
+        console.error('Missing required refs in onDraw');
         return;
       }
 
-      // Clear existing markers
-      sceneRef.current.children = sceneRef.current.children.filter(
-        child => !child.userData.isRoute
-      );
+      // Clear existing markers from the scene
+      const existingMarkers = sceneRef.current.children.filter(child => child.userData.isRoute);
+      existingMarkers.forEach(marker => sceneRef.current!.remove(marker));
 
       if (routePath.length > 1) {
         try {
-          // Create departure marker (green)
+          // Create and position departure marker (green)
           const departureMarker = createMarkerCube(0x00ff00);
           departureMarker.userData.isRoute = true;
 
-          const startLatLng = {
+          const startMatrix = transformer.fromLatLngAltitude({
             lat: routePath[0].lat,
             lng: routePath[0].lng,
-            altitude: 100
-          };
-
-          const startMatrix = transformer.fromLatLngAltitude(startLatLng);
-          departureMarker.applyMatrix4(new THREE.Matrix4().fromArray(startMatrix));
+            altitude: 120
+          });
+          departureMarker.matrix.fromArray(startMatrix);
+          departureMarker.matrixAutoUpdate = false;
           sceneRef.current.add(departureMarker);
           console.log('Added departure marker');
 
-          // Create arrival marker (red)
+          // Create and position arrival marker (red)
           const arrivalMarker = createMarkerCube(0xff0000);
           arrivalMarker.userData.isRoute = true;
 
-          const endLatLng = {
+          const endMatrix = transformer.fromLatLngAltitude({
             lat: routePath[routePath.length - 1].lat,
             lng: routePath[routePath.length - 1].lng,
-            altitude: 100
-          };
-
-          const endMatrix = transformer.fromLatLngAltitude(endLatLng);
-          arrivalMarker.applyMatrix4(new THREE.Matrix4().fromArray(endMatrix));
+            altitude: 120
+          });
+          arrivalMarker.matrix.fromArray(endMatrix);
+          arrivalMarker.matrixAutoUpdate = false;
           sceneRef.current.add(arrivalMarker);
           console.log('Added arrival marker');
         } catch (error) {
@@ -98,14 +90,11 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
         altitude: 120
       });
 
-      cameraRef.current.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
+      cameraRef.current.projectionMatrix.fromArray(matrix);
 
-      // Request a redraw before rendering
+      // Request a redraw and render
       webglOverlayView.requestRedraw();
-
-      // Render the scene
       rendererRef.current.render(sceneRef.current, cameraRef.current);
-      // Reset GL state
       rendererRef.current.resetState();
     };
 
@@ -115,7 +104,9 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     return () => {
       webglOverlayView.setMap(null);
       if (sceneRef.current) {
-        sceneRef.current.clear();
+        while (sceneRef.current.children.length > 0) {
+          sceneRef.current.remove(sceneRef.current.children[0]);
+        }
       }
     };
   }, [map, routePath]);
