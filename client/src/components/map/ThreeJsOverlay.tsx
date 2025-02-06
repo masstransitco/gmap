@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { ThreeJSOverlayView } from '@googlemaps/three';
 import { createMarkerCube, createScene } from '@/lib/three-utils';
 
 interface RoutePath {
@@ -14,7 +13,6 @@ interface ThreeJsOverlayProps {
 }
 
 export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
-  const overlayRef = useRef<ThreeJSOverlayView>();
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
@@ -28,64 +26,72 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     webglOverlayView.onAdd = () => {
       // Set up the scene
-      const scene = createScene();
-      sceneRef.current = scene;
+      sceneRef.current = createScene();
 
       // Set up the camera
       cameraRef.current = new THREE.PerspectiveCamera();
+      console.log('Scene and camera initialized');
     };
 
     webglOverlayView.onContextRestored = ({ gl }) => {
       // Create the Three.js renderer using the WebGL context from the map
-      const renderer = new THREE.WebGLRenderer({
+      rendererRef.current = new THREE.WebGLRenderer({
         canvas: gl.canvas,
         context: gl,
         ...gl.getContextAttributes(),
       });
-      renderer.autoClear = false;
-      rendererRef.current = renderer;
+      rendererRef.current.autoClear = false;
+      console.log('WebGL context restored and renderer initialized');
     };
 
     webglOverlayView.onDraw = ({ gl, transformer }) => {
-      if (!sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+      if (!sceneRef.current || !rendererRef.current || !cameraRef.current) {
+        console.log('Missing required refs in onDraw');
+        return;
+      }
 
-      // Update marker positions if route exists
+      // Clear existing markers
+      sceneRef.current.children = sceneRef.current.children.filter(
+        child => !child.userData.isRoute
+      );
+
       if (routePath.length > 1) {
-        // Clear existing markers
-        sceneRef.current.children = sceneRef.current.children.filter(
-          child => !child.userData.isRoute
-        );
+        try {
+          // Create departure marker (green)
+          const departureMarker = createMarkerCube(0x00ff00);
+          departureMarker.userData.isRoute = true;
 
-        // Create departure marker (green)
-        const departureMarker = createMarkerCube(0x00ff00);
-        departureMarker.userData.isRoute = true;
+          const startMatrix = transformer.fromLatLngAltitude({
+            lat: routePath[0].lat,
+            lng: routePath[0].lng,
+            altitude: 100
+          });
 
-        const startMatrix = transformer.fromLatLngAltitude({
-          lat: routePath[0].lat,
-          lng: routePath[0].lng,
-          altitude: 50
-        });
+          if (startMatrix) {
+            departureMarker.matrix.fromArray(startMatrix);
+            departureMarker.matrixAutoUpdate = false;
+            sceneRef.current.add(departureMarker);
+            console.log('Added departure marker');
+          }
 
-        if (startMatrix) {
-          departureMarker.matrix.fromArray(startMatrix);
-          departureMarker.matrixAutoUpdate = false;
-          sceneRef.current.add(departureMarker);
-        }
+          // Create arrival marker (red)
+          const arrivalMarker = createMarkerCube(0xff0000);
+          arrivalMarker.userData.isRoute = true;
 
-        // Create arrival marker (red)
-        const arrivalMarker = createMarkerCube(0xff0000);
-        arrivalMarker.userData.isRoute = true;
+          const endMatrix = transformer.fromLatLngAltitude({
+            lat: routePath[routePath.length - 1].lat,
+            lng: routePath[routePath.length - 1].lng,
+            altitude: 100
+          });
 
-        const endMatrix = transformer.fromLatLngAltitude({
-          lat: routePath[routePath.length - 1].lat,
-          lng: routePath[routePath.length - 1].lng,
-          altitude: 50
-        });
-
-        if (endMatrix) {
-          arrivalMarker.matrix.fromArray(endMatrix);
-          arrivalMarker.matrixAutoUpdate = false;
-          sceneRef.current.add(arrivalMarker);
+          if (endMatrix) {
+            arrivalMarker.matrix.fromArray(endMatrix);
+            arrivalMarker.matrixAutoUpdate = false;
+            sceneRef.current.add(arrivalMarker);
+            console.log('Added arrival marker');
+          }
+        } catch (error) {
+          console.error('Error placing markers:', error);
         }
       }
 
@@ -93,11 +99,11 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       const cameraMatrix = transformer.fromLatLngAltitude({
         lat: map.getCenter().lat(),
         lng: map.getCenter().lng(),
-        altitude: 100
+        altitude: 120
       });
 
       if (cameraMatrix) {
-        cameraRef.current.projectionMatrix = new THREE.Matrix4().fromArray(cameraMatrix);
+        cameraRef.current.projectionMatrix.fromArray(cameraMatrix);
       }
 
       // Render the scene
@@ -108,17 +114,14 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     // Set the overlay on the map
     webglOverlayView.setMap(map);
-    overlayRef.current = webglOverlayView;
 
     return () => {
-      if (overlayRef.current) {
-        overlayRef.current.setMap(null);
-      }
+      webglOverlayView.setMap(null);
       if (sceneRef.current) {
         sceneRef.current.clear();
       }
     };
-  }, [map]);
+  }, [map, routePath]);
 
   return null;
 }
