@@ -31,7 +31,7 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
-      anchor: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
+      anchor: new google.maps.LatLng(0, 0), // Will be updated with route
       three: {
         camera: {
           fov: 45,
@@ -88,15 +88,6 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
       const camera = overlay.getCamera();
       if (!camera || !rendererRef.current || !sceneRef.current) return;
 
-      // Update camera matrix to ensure proper georeferencing
-      const latLngAltitudeLiteral = {
-        lat: 22.3035,
-        lng: 114.1599,
-        altitude: 100,
-      };
-      const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
-      camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
-
       // Clear the renderer properly
       rendererRef.current.clear();
 
@@ -134,6 +125,8 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
   useEffect(() => {
     if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
 
+    console.log('Updating route visualization with path:', routePath);
+
     // Clear previous route visualization
     sceneRef.current.children.forEach(child => {
       if (child.userData.isRoute) {
@@ -148,41 +141,47 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     });
 
     if (routePath.length > 1) {
+      const startPoint = routePath[0];
+
+      // Update overlay anchor to the start point
+      overlayRef.current.anchor = new google.maps.LatLng(startPoint.lat, startPoint.lng);
+
       // Create departure marker (green)
       const departureMarker = createMarkerCube(0x00ff00);
       departureMarker.position.set(0, 20, 0);
       departureMarker.userData.isRoute = true;
       sceneRef.current.add(departureMarker);
 
-      // Create arrival marker (red)
-      const arrivalMarker = createMarkerCube(0xff0000);
-      const lastPoint = routePath[routePath.length - 1];
-      const deltaLng = lastPoint.lng - routePath[0].lng;
-      const deltaLat = lastPoint.lat - routePath[0].lat;
-      arrivalMarker.position.set(deltaLng * 111000, 20, deltaLat * 111000);
-      arrivalMarker.userData.isRoute = true;
-      sceneRef.current.add(arrivalMarker);
-
-      // Create route line points
+      // Create points for the route, relative to start point
       const points = routePath.map((point, index) => {
-        const deltaLng = point.lng - routePath[0].lng;
-        const deltaLat = point.lat - routePath[0].lat;
-        // Scale the coordinates (roughly 111km per degree)
+        // Convert lat/lng differences to approximate meters
+        const deltaLng = (point.lng - startPoint.lng) * 111000 * Math.cos(startPoint.lat * Math.PI / 180);
+        const deltaLat = (point.lat - startPoint.lat) * 111000;
+
         return new THREE.Vector3(
-          deltaLng * 111000,
+          deltaLng,
           20 + Math.sin(index * 0.2) * 10, // Add wave pattern
-          deltaLat * 111000
+          -deltaLat // Negative because Three.js Z is opposite to latitude
         );
       });
+
+      // Create arrival marker (red)
+      const arrivalMarker = createMarkerCube(0xff0000);
+      const lastPoint = points[points.length - 1];
+      arrivalMarker.position.copy(lastPoint);
+      arrivalMarker.userData.isRoute = true;
+      sceneRef.current.add(arrivalMarker);
 
       // Create and add route line
       const routeLine = createRouteLine(points);
       routeLine.userData.isRoute = true;
       sceneRef.current.add(routeLine);
-    }
 
-    // Request a redraw
-    overlayRef.current?.requestRedraw();
+      // Request a redraw with the updated scene
+      overlayRef.current.requestRedraw();
+
+      console.log('Route visualization updated');
+    }
   }, [routePath]);
 
   return null;
