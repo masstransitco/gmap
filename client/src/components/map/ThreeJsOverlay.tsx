@@ -36,16 +36,27 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
 
     sceneRef.current = scene;
 
-    // Initialize overlay with the basic setup from example
+    // Initialize overlay following the example structure
     const overlay = new ThreeJSOverlayView({
       map,
       scene,
-      anchor: new google.maps.LatLng(22.3035, 114.1599),
       THREE,
+      anchor: { ...map.getCenter().toJSON(), altitude: 100 },
     });
 
     overlay.setMap(map);
     overlayRef.current = overlay;
+
+    // Add camera tilt animation
+    let tilt = 0;
+    const animate = () => {
+      if (tilt < 45) {
+        tilt += 0.5;
+        map.moveCamera({ tilt });
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
 
     return () => {
       if (overlayRef.current) {
@@ -57,37 +68,56 @@ export function ThreeJsOverlay({ map, routePath }: ThreeJsOverlayProps) {
     };
   }, [map]);
 
+  // Update markers when route changes
   useEffect(() => {
     if (!sceneRef.current || !overlayRef.current || routePath.length === 0) return;
 
     console.log('Updating 3D markers for route endpoints');
 
-    // Clear previous markers
-    sceneRef.current.children = sceneRef.current.children.filter(child => !child.userData.isRoute);
+    try {
+      // Clear previous markers
+      sceneRef.current.children = sceneRef.current.children.filter(child => !child.userData.isRoute);
 
-    if (routePath.length > 1) {
-      try {
-        // Create departure marker (green) at elevation
+      if (routePath.length > 1) {
+        // Create departure marker (green)
         const departureMarker = createMarkerCube(0x00ff00);
         departureMarker.userData.isRoute = true;
-        const startLatLng = new google.maps.LatLng(routePath[0].lat, routePath[0].lng);
-        const startPos = overlayRef.current.latLngAltitudeToVector3(startLatLng, 50);
-        departureMarker.position.copy(startPos);
-        sceneRef.current.add(departureMarker);
 
-        // Create arrival marker (red) at elevation
+        // Create matrices for marker positions
+        const startMatrix = overlayRef.current.getProjection().fromLatLngAltitude({
+          lat: routePath[0].lat,
+          lng: routePath[0].lng,
+          altitude: 50
+        });
+
+        if (startMatrix) {
+          departureMarker.matrix.fromArray(startMatrix.elements);
+          departureMarker.matrixAutoUpdate = false;
+          sceneRef.current.add(departureMarker);
+        }
+
+        // Create arrival marker (red)
         const arrivalMarker = createMarkerCube(0xff0000);
         arrivalMarker.userData.isRoute = true;
-        const endLatLng = new google.maps.LatLng(routePath[routePath.length - 1].lat, routePath[routePath.length - 1].lng);
-        const endPos = overlayRef.current.latLngAltitudeToVector3(endLatLng, 50);
-        arrivalMarker.position.copy(endPos);
-        sceneRef.current.add(arrivalMarker);
 
+        const endMatrix = overlayRef.current.getProjection().fromLatLngAltitude({
+          lat: routePath[routePath.length - 1].lat,
+          lng: routePath[routePath.length - 1].lng,
+          altitude: 50
+        });
+
+        if (endMatrix) {
+          arrivalMarker.matrix.fromArray(endMatrix.elements);
+          arrivalMarker.matrixAutoUpdate = false;
+          sceneRef.current.add(arrivalMarker);
+        }
+
+        // Request a redraw of the scene
         overlayRef.current.requestRedraw();
         console.log('3D markers updated successfully');
-      } catch (error) {
-        console.error('Error updating 3D markers:', error);
       }
+    } catch (error) {
+      console.error('Error updating 3D markers:', error);
     }
   }, [routePath]);
 

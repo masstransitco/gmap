@@ -59,7 +59,7 @@ export function MapContainer() {
         polyline.setMap(mapRef.current);
         polylineRef.current = polyline;
 
-        // Fit map bounds to show the entire route
+        // Fit map bounds to show the entire route with padding
         const bounds = new google.maps.LatLngBounds();
         path.forEach(point => bounds.extend(point));
         mapRef.current?.fitBounds(bounds, {
@@ -136,7 +136,7 @@ export function MapContainer() {
         const mapOptions = {
           center: { lat: 22.3035, lng: 114.1599 },
           zoom: 15,
-          tilt: 45,
+          tilt: 0,
           heading: 0,
           mapId: "15431d2b469f209e",
           disableDefaultUI: false,

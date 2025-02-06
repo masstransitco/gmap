@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export function createMarkerCube(color: number = 0x00ff00) {
-  const geometry = new THREE.BoxGeometry(2, 4, 2);
+  const geometry = new THREE.BoxGeometry(20, 40, 20);
   const material = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
@@ -9,6 +9,7 @@ export function createMarkerCube(color: number = 0x00ff00) {
   });
 
   const cube = new THREE.Mesh(geometry, material);
+  cube.rotation.x = Math.PI / 2;
   cube.renderOrder = 1; // Ensure markers render on top
   return cube;
 }
