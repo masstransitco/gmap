@@ -29,21 +29,18 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
     // Initialize Google Places Autocomplete
     const initializeAutocomplete = async () => {
       try {
-        // Wait for Places library to be loaded
-        const { Autocomplete } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
-
         // Configure autocomplete for departure
-        departureAutocompleteRef.current = new Autocomplete(departureRef.current!, {
+        departureAutocompleteRef.current = new google.maps.places.Autocomplete(departureRef.current!, {
           fields: ['formatted_address', 'geometry', 'name'],
           componentRestrictions: { country: 'hk' }, // Restrict to Hong Kong
-          types: ['establishment', 'geocode', 'address']
+          types: ['establishment', 'geocode']
         });
 
         // Configure autocomplete for arrival
-        arrivalAutocompleteRef.current = new Autocomplete(arrivalRef.current!, {
+        arrivalAutocompleteRef.current = new google.maps.places.Autocomplete(arrivalRef.current!, {
           fields: ['formatted_address', 'geometry', 'name'],
           componentRestrictions: { country: 'hk' }, // Restrict to Hong Kong
-          types: ['establishment', 'geocode', 'address']
+          types: ['establishment', 'geocode']
         });
 
         // Add listeners to update state when place is selected
@@ -54,17 +51,6 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
               address: place.formatted_address || place.name || '',
               location: place.geometry.location
             });
-            toast({
-              title: "Departure Selected",
-              description: place.formatted_address || place.name,
-            });
-          } else {
-            setDeparture({ address: departureRef.current?.value || "" });
-            toast({
-              title: "Invalid Location",
-              description: "Please select a location from the dropdown suggestions",
-              variant: "destructive"
-            });
           }
         });
 
@@ -74,17 +60,6 @@ export function RouteInputs({ onRouteChange }: RouteInputsProps) {
             setArrival({
               address: place.formatted_address || place.name || '',
               location: place.geometry.location
-            });
-            toast({
-              title: "Arrival Selected",
-              description: place.formatted_address || place.name,
-            });
-          } else {
-            setArrival({ address: arrivalRef.current?.value || "" });
-            toast({
-              title: "Invalid Location",
-              description: "Please select a location from the dropdown suggestions",
-              variant: "destructive"
             });
           }
         });

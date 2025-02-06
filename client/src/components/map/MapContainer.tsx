@@ -62,6 +62,7 @@ export function MapContainer() {
   };
 
   useEffect(() => {
+    let isMounted = true;
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
     if (!apiKey) {
@@ -80,8 +81,8 @@ export function MapContainer() {
 
         // Load the Google Maps script asynchronously
         await new Promise<void>((resolve, reject) => {
-          // Check if Google Maps is already loaded
           if (window.google?.maps) {
+            console.log('Google Maps already loaded');
             setIsLoadingScript(false);
             resolve();
             return;
@@ -89,11 +90,13 @@ export function MapContainer() {
 
           const script = document.createElement('script');
           script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-          script.async = true;
+          script.defer = true;
 
           script.onload = () => {
-            console.log('Google Maps script loaded');
-            setIsLoadingScript(false);
+            console.log('Google Maps script loaded successfully');
+            if (isMounted) {
+              setIsLoadingScript(false);
+            }
             resolve();
           };
 
@@ -105,15 +108,18 @@ export function MapContainer() {
           document.head.appendChild(script);
         });
 
-        console.log('Initializing map...');
-
-        // Initialize map only after container is ready
-        if (!containerRef.current) {
-          throw new Error('Map container not found');
+        // Wait for the container to be available
+        while (isMounted && !containerRef.current) {
+          console.log('Waiting for map container...');
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
+        if (!isMounted) return;
+
+        console.log('Map container found, initializing map...');
+
         // Initialize map with correct configuration
-        const map = new google.maps.Map(containerRef.current, {
+        const map = new google.maps.Map(containerRef.current!, {
           center: { lat: 22.3035, lng: 114.1599 }, // Hong Kong coordinates
           zoom: 15,
           tilt: 45,
@@ -128,51 +134,46 @@ export function MapContainer() {
           rotateControl: true,
         });
 
-        mapRef.current = map;
-        setMapLoaded(true);
-        console.log('Map initialized successfully');
+        if (isMounted) {
+          mapRef.current = map;
+          setMapLoaded(true);
+          console.log('Map initialized successfully');
+        }
 
       } catch (error) {
         console.error('Map initialization error:', error);
-        setIsLoadingScript(false);
-        toast({
-          title: "Error",
-          description: "Failed to initialize the map",
-          variant: "destructive"
-        });
+        if (isMounted) {
+          setIsLoadingScript(false);
+          toast({
+            title: "Error",
+            description: "Failed to initialize the map",
+            variant: "destructive"
+          });
+        }
       }
     };
 
-    // Wait for component to mount before loading Google Maps
-    const timer = setTimeout(() => {
-      loadGoogleMaps();
-    }, 100);
+    loadGoogleMaps();
 
     return () => {
-      clearTimeout(timer);
+      isMounted = false;
     };
   }, [toast]);
-
-  if (isLoadingScript) {
-    return (
-      <div className="h-full w-full flex items-center justify-center">
-        <Loader />
-      </div>
-    );
-  }
 
   return (
     <div className="relative w-full h-full">
       <div 
         ref={containerRef} 
         className="absolute inset-0 bg-gray-100" 
-        style={{ minHeight: '400px' }}
+        style={{ minHeight: '500px' }}
       />
+
       {!mapLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <Loader />
         </div>
       )}
+
       {mapRef.current && mapLoaded && (
         <>
           <ThreeJsOverlay 
